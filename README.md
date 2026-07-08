@@ -24,25 +24,6 @@ It runs locally, collects read-only metrics over SSH, and renders CPU, memory, n
 - btop-inspired braille graphs, bars, and aligned terminal layout
 - multiple disks, ZFS pool summaries, aliases, and per-host disk row limits
 
-## Quick start
-
-Pick the install style that matches how much of your machine you want `rktop` to touch:
-
-- **Debian / Ubuntu**: install the `.deb` package.
-- **Portable Linux**: extract the tarball and keep config beside the binary.
-- **Windows**: use the PowerShell installer or unzip the portable package.
-- **Source build**: only needed for development; this is the path that requires Rust.
-
-Release packages do **not** require Rust.
-
-After installing:
-
-```bash
-rktop config   # add local/SSH servers, test SSH, reorder, tune disks
-rktop doctor   # validate config and SSH health
-rktop          # live dashboard
-```
-
 ## Install
 
 ### Debian / Ubuntu (recommended)
@@ -58,7 +39,6 @@ rktop
 ### Portable release
 
 Use this when you want `rktop` and `config.toml` to stay in one extracted folder.
-It does not write to `/usr/bin`, `/etc`, or your user config directory.
 
 ```bash
 RKTOP_VERSION=v0.1.5
@@ -72,17 +52,7 @@ cd rktop
 
 ### Windows
 
-Native Windows builds are for running the dashboard from Windows while monitoring Linux SSH hosts.
-In other words, native `rktop.exe` can monitor Linux SSH hosts.
-Local Windows metrics and Windows remote hosts are not implemented yet.
-
-One-line user PATH installer:
-
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/Kinetic27/rktop/main/scripts/install.ps1 | iex"
-```
-
-Portable zip, if you do not want PATH or installer state touched:
+Portable zip:
 
 ```powershell
 $Version = "v0.1.5"
@@ -94,19 +64,15 @@ cd .\rktop
 .\rktop.exe
 ```
 
-Installer knobs:
+User PATH installer:
 
 ```powershell
-$env:RKTOP_VERSION="v0.1.5"        # pin a release
-$env:RKTOP_INSTALL_DIR="E:\rktop"  # custom install dir
-$env:RKTOP_SKIP_PATH="1"           # do not edit user PATH
-$env:RKTOP_NON_INTERACTIVE="1"     # CI/unattended mode
+powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/Kinetic27/rktop/main/scripts/install.ps1 | iex"
 ```
 
-### Source build
+Windows support is scoped to SSH monitoring: native `rktop.exe` can monitor Linux SSH hosts. Local Windows metrics are not implemented yet.
 
-Use this for development. Rust is required because it builds from source.
-The install stays inside the clone under `./.rktop/`.
+### Source build
 
 ```bash
 git clone https://github.com/Kinetic27/rktop.git
@@ -115,6 +81,8 @@ scripts/install.sh
 ./.rktop/bin/rktop config
 ./.rktop/bin/rktop
 ```
+
+Source install stays inside the clone under `./.rktop/`.
 
 ## Configuration
 

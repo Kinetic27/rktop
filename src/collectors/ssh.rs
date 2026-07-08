@@ -1,6 +1,6 @@
 use std::io::{self, Read, Write};
 use std::process::{Command, Output, Stdio};
-use std::thread::sleep;
+use std::thread::{self, sleep};
 use std::time::{Duration, Instant};
 
 use crate::collectors::{CollectorError, metrics_from_key_values};
@@ -86,6 +86,9 @@ fn run_command_with_input(
         }
     }
 
+    let stdout_reader = read_pipe_in_background(child.stdout.take());
+    let stderr_reader = read_pipe_in_background(child.stderr.take());
+
     let started = Instant::now();
     let status = loop {
         if let Some(status) = child.try_wait()? {
@@ -94,10 +97,8 @@ fn run_command_with_input(
         if started.elapsed() >= timeout {
             let _ = child.kill();
             let status = child.wait()?;
-            let mut stderr = Vec::new();
-            if let Some(mut child_stderr) = child.stderr.take() {
-                let _ = child_stderr.read_to_end(&mut stderr);
-            }
+            let _stdout = join_pipe_reader(stdout_reader)?;
+            let stderr = join_pipe_reader(stderr_reader)?;
             let mut message = format!("SSH command timed out after {}s", timeout.as_secs());
             let detail = String::from_utf8_lossy(&stderr).trim().to_string();
             if !detail.is_empty() {
@@ -112,20 +113,30 @@ fn run_command_with_input(
         sleep(SSH_POLL_INTERVAL);
     };
 
-    let mut stdout = Vec::new();
-    if let Some(mut child_stdout) = child.stdout.take() {
-        child_stdout.read_to_end(&mut stdout)?;
-    }
-    let mut stderr = Vec::new();
-    if let Some(mut child_stderr) = child.stderr.take() {
-        child_stderr.read_to_end(&mut stderr)?;
-    }
-
     Ok(Output {
         status,
-        stdout,
-        stderr,
+        stdout: join_pipe_reader(stdout_reader)?,
+        stderr: join_pipe_reader(stderr_reader)?,
     })
+}
+
+fn read_pipe_in_background<T>(pipe: Option<T>) -> thread::JoinHandle<io::Result<Vec<u8>>>
+where
+    T: Read + Send + 'static,
+{
+    thread::spawn(move || {
+        let mut data = Vec::new();
+        if let Some(mut pipe) = pipe {
+            pipe.read_to_end(&mut data)?;
+        }
+        Ok(data)
+    })
+}
+
+fn join_pipe_reader(reader: thread::JoinHandle<io::Result<Vec<u8>>>) -> io::Result<Vec<u8>> {
+    reader
+        .join()
+        .unwrap_or_else(|_| Err(io::Error::other("SSH pipe reader thread panicked")))
 }
 
 fn base_ssh_command(detach_stdin: bool) -> Command {

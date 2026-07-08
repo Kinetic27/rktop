@@ -731,7 +731,7 @@ fn first_run_config_flow_is_wired_into_cli() {
     assert_contains(APP_RS, "CommandMode::Doctor", "stm doctor command mode");
     assert_contains(
         APP_RS,
-        "ssh_probe_command(&host)",
+        "run_ssh_probe(&host)",
         "doctor should check SSH key auth through the shared non-interactive SSH probe",
     );
     assert_contains(
@@ -1200,7 +1200,7 @@ fn live_ssh_monitoring_contract_is_read_only_and_noninteractive() {
     );
     assert_contains(
         APP_RS,
-        "ssh_probe_command(&host)",
+        "run_ssh_probe(&host)",
         "doctor must use the shared SSH probe builder",
     );
     assert_contains(

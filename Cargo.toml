@@ -1,0 +1,17 @@
+[package]
+name = "server-tui-monitor"
+version = "0.1.0"
+edition = "2024"
+description = "A btop-inspired TUI dashboard for monitoring multiple Linux servers over SSH"
+license = "MIT"
+readme = "README.md"
+keywords = ["tui", "monitoring", "ssh", "ratatui", "homelab"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+crossterm = "0.28"
+ratatui = "0.29"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"

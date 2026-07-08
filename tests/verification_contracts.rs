@@ -1380,12 +1380,12 @@ fn github_release_deb_packaging_is_wired() {
     );
     assert_contains(
         README_MD,
-        "wget https://github.com/Kinetic27/rktop/releases/download/v0.1.5/rktop_0.1.5_amd64.deb",
+        "wget https://github.com/Kinetic27/rktop/releases/download/v0.1.6/rktop_0.1.6_amd64.deb",
         "README .deb install should be directly copy-pasteable",
     );
     assert_contains(
         README_MD,
-        "sudo apt install ./rktop_0.1.5_amd64.deb",
+        "sudo apt install ./rktop_0.1.6_amd64.deb",
         "README .deb install should avoid shell parameter expansion",
     );
 }

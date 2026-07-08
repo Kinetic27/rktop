@@ -11,6 +11,9 @@ const SSH_OPTIONS: &[(&str, &str)] = &[
     ("ConnectTimeout", "5"),
     ("ConnectionAttempts", "1"),
     ("NumberOfPasswordPrompts", "0"),
+];
+
+const SSH_MULTIPLEX_OPTIONS: &[(&str, &str)] = &[
     ("ControlMaster", "auto"),
     ("ControlPersist", "10m"),
     ("ControlPath", "~/.ssh/rktop-%C"),
@@ -54,6 +57,11 @@ fn base_ssh_command(host: &str) -> Command {
     for (key, value) in SSH_OPTIONS {
         command.arg("-o").arg(format!("{key}={value}"));
     }
+    if !cfg!(windows) {
+        for (key, value) in SSH_MULTIPLEX_OPTIONS {
+            command.arg("-o").arg(format!("{key}={value}"));
+        }
+    }
     command.arg(host);
     command
 }
@@ -86,9 +94,6 @@ mod tests {
         assert!(debug.contains("ConnectTimeout=5"));
         assert!(debug.contains("ConnectionAttempts=1"));
         assert!(debug.contains("NumberOfPasswordPrompts=0"));
-        assert!(debug.contains("ControlMaster=auto"));
-        assert!(debug.contains("ControlPersist=10m"));
-        assert!(debug.contains("ControlPath=~/.ssh/rktop-%C"));
         assert!(debug.contains("ExampleHost"));
         assert!(debug.contains("/proc/loadavg"));
     }
@@ -103,12 +108,23 @@ mod tests {
         assert!(debug.contains("ConnectTimeout=5"));
         assert!(debug.contains("ConnectionAttempts=1"));
         assert!(debug.contains("NumberOfPasswordPrompts=0"));
-        assert!(debug.contains("ControlMaster=auto"));
-        assert!(debug.contains("ControlPersist=10m"));
-        assert!(debug.contains("ControlPath=~/.ssh/rktop-%C"));
         assert!(debug.contains("ExampleHost"));
         assert!(debug.contains("true"));
         assert!(!debug.contains("/proc/loadavg"));
+    }
+
+    #[test]
+    fn ssh_multiplexing_is_disabled_on_windows() {
+        let debug = format!("{:?}", super::ssh_command("ExampleHost"));
+        if cfg!(windows) {
+            assert!(!debug.contains("ControlMaster=auto"));
+            assert!(!debug.contains("ControlPersist=10m"));
+            assert!(!debug.contains("ControlPath=~/.ssh/rktop-%C"));
+        } else {
+            assert!(debug.contains("ControlMaster=auto"));
+            assert!(debug.contains("ControlPersist=10m"));
+            assert!(debug.contains("ControlPath=~/.ssh/rktop-%C"));
+        }
     }
 
     #[test]

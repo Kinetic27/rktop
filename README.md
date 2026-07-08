@@ -20,7 +20,7 @@
 - **Live by default** — running `rktop` opens the live TUI, like `htop`/`btop`.
 - **Multi-host over SSH** — Linux hosts are collected with non-interactive key auth.
 - **No remote install required** — the SSH collector runs fixed read-only shell probes.
-- **Fast refresh friendly** — SSH connection multiplexing reuses sessions, and failed optional hosts back off so powered-off boxes do not stall every refresh.
+- **Fast refresh friendly** — SSH connection multiplexing reuses sessions on Unix-like runners, and failed optional hosts back off so powered-off boxes do not stall every refresh.
 - **Optional hosts** — powered-off boxes can simply disappear instead of breaking the dashboard.
 - **Polished terminal UI** — braille history graphs, rule-filled sections, aligned disk rows, and adaptive layout.
 - **Storage-friendly** — multiple disks, disk aliases, row limits, and ZFS/TrueNAS-style mount cleanup.
@@ -44,8 +44,8 @@ Portable downloads need **no Rust** and keep the binary, README, license, and st
 Linux x86_64:
 
 ```bash
-wget https://github.com/Kinetic27/rktop/releases/latest/download/rktop_0.1.1_linux_x86_64.tar.gz
-tar -xzf rktop_0.1.1_linux_x86_64.tar.gz
+wget https://github.com/Kinetic27/rktop/releases/latest/download/rktop_0.1.2_linux_x86_64.tar.gz
+tar -xzf rktop_0.1.2_linux_x86_64.tar.gz
 cd rktop
 ./rktop config
 ./rktop doctor
@@ -55,7 +55,7 @@ cd rktop
 Windows 10/11 PowerShell:
 
 ```powershell
-Invoke-WebRequest https://github.com/Kinetic27/rktop/releases/latest/download/rktop_v0.1.1_windows_x86_64.zip -OutFile rktop.zip
+Invoke-WebRequest https://github.com/Kinetic27/rktop/releases/latest/download/rktop_v0.1.2_windows_x86_64.zip -OutFile rktop.zip
 Expand-Archive .\rktop.zip -DestinationPath .
 cd .\rktop
 .\rktop.exe config
@@ -70,8 +70,8 @@ Portable mode uses the `config.toml` placed beside the executable before falling
 The `.deb` also needs **no Rust**. It installs `rktop` system-wide and depends on `openssh-client`:
 
 ```bash
-wget https://github.com/Kinetic27/rktop/releases/latest/download/rktop_0.1.1_amd64.deb
-sudo apt install ./rktop_0.1.1_amd64.deb
+wget https://github.com/Kinetic27/rktop/releases/latest/download/rktop_0.1.2_amd64.deb
+sudo apt install ./rktop_0.1.2_amd64.deb
 rktop config
 rktop doctor
 rktop
@@ -91,7 +91,7 @@ For unattended installs, set `RKTOP_NON_INTERACTIVE=1` on the shell that runs th
 $env:RKTOP_NON_INTERACTIVE=1; irm https://raw.githubusercontent.com/Kinetic27/rktop/main/scripts/install.ps1 | iex
 ```
 
-The installer downloads the latest Windows release zip, installs `rktop.exe` to `%LOCALAPPDATA%\rktop\bin`, and adds that directory to your user `PATH`. You can override with `RKTOP_INSTALL_DIR`, pin a version with `RKTOP_VERSION=v0.1.1`, or skip PATH updates with `RKTOP_SKIP_PATH=1`.
+The installer downloads the latest Windows release zip, installs `rktop.exe` to `%LOCALAPPDATA%\rktop\bin`, and adds that directory to your user `PATH`. You can override with `RKTOP_INSTALL_DIR`, pin a version with `RKTOP_VERSION=v0.1.2`, or skip PATH updates with `RKTOP_SKIP_PATH=1`.
 
 Windows runs `rktop.exe` natively, but only SSH monitoring of Linux hosts is supported for now. Do not add the Windows machine as `source = "local"`; local Windows CPU/RAM/disk collection needs a future Windows collector.
 
@@ -244,14 +244,14 @@ Build a local Debian package:
 
 ```bash
 scripts/build-deb.sh
-sudo apt install ./dist/rktop_0.1.1_amd64.deb
+sudo apt install ./dist/rktop_0.1.2_amd64.deb
 ```
 
 Tagged releases publish the `.deb` automatically:
 
 ```bash
-git tag v0.1.1
-git push origin v0.1.1
+git tag v0.1.2
+git push origin v0.1.2
 ```
 
 The release workflow uploads a portable Linux tarball, a Windows zip, `rktop_<version>_<arch>.deb`, and matching SHA-256 files to GitHub Releases. This is not an official Debian/Ubuntu archive package yet; it is a GitHub-hosted `.deb` for direct install.
@@ -280,7 +280,7 @@ Doctor checks:
 - at least one server is enabled
 - local collector runs on local servers
 - SSH aliases are safe and key auth works without prompts
-- SSH multiplexing options are available for faster repeated polling
+- SSH multiplexing options are available for faster repeated polling on Unix-like runners
 - SSH remote Linux collector can read `/proc`, `df`, memory, network and uptime data
 
 Required server failures make `doctor` exit non-zero. Optional server failures print `warn` and do not fail the command.

@@ -20,8 +20,22 @@ jobs:
       - name: Verify .deb metadata
         run: |
           dpkg-deb --info dist/*.deb
-          dpkg-deb --contents dist/*.deb | grep -E './usr/bin/server-tui-monitor$'
-          dpkg-deb --contents dist/*.deb | grep -E './usr/bin/rktop -> server-tui-monitor$'
+          dpkg-deb --contents dist/*.deb | grep -E './usr/bin/rktop$'
+          dpkg-deb --contents dist/*.deb | grep -E './usr/bin/stm -> rktop$'
+      - name: Build Linux portable tarball
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          stage="target/portable/rktop"
+          rm -rf "$stage"
+          mkdir -p "$stage"
+          cp target/release/rktop "$stage/rktop"
+          cp config/rktop.example.toml "$stage/config.toml"
+          cp README.md "$stage/README.md"
+          cp LICENSE "$stage/LICENSE"
+          tar -C target/portable -czf "dist/rktop_${version}_linux_x86_64.tar.gz" rktop
+          sha256sum "dist/rktop_${version}_linux_x86_64.tar.gz" > "dist/rktop_${version}_linux_x86_64.tar.gz.sha256"
       - name: Create or update GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -47,10 +61,12 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist, dist/rktop | Out-Null
-          Copy-Item target/release/server-tui-monitor.exe dist/rktop/rktop.exe
+          Copy-Item target/release/rktop.exe dist/rktop/rktop.exe
+          Copy-Item config/rktop.example.toml dist/rktop/config.toml
           Copy-Item README.md dist/rktop/README.md
           Copy-Item LICENSE dist/rktop/LICENSE
-          Compress-Archive -Path dist/rktop/* -DestinationPath dist/rktop_${{ github.ref_name }}_windows_x86_64.zip -Force
+          Copy-Item scripts/install.ps1 dist/rktop/install.ps1
+          Compress-Archive -Path dist/rktop -DestinationPath dist/rktop_${{ github.ref_name }}_windows_x86_64.zip -Force
           Get-FileHash dist/rktop_${{ github.ref_name }}_windows_x86_64.zip -Algorithm SHA256 |
             ForEach-Object { "$($_.Hash.ToLower())  rktop_${{ github.ref_name }}_windows_x86_64.zip" } |
             Set-Content dist/rktop_${{ github.ref_name }}_windows_x86_64.zip.sha256

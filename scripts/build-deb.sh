@@ -64,7 +64,7 @@ if [[ "$build" == true ]]; then
   cargo build --release --locked
 fi
 
-binary="target/release/server-tui-monitor"
+binary="target/release/rktop"
 if [[ ! -x "$binary" ]]; then
   echo "Release binary not found or not executable: $binary" >&2
   exit 1
@@ -79,21 +79,20 @@ mkdir -p \
   "$stage/usr/share/doc/$pkg_name" \
   "$stage/usr/share/licenses/$pkg_name"
 
-install -m 0755 "$binary" "$stage/usr/bin/server-tui-monitor"
-ln -s server-tui-monitor "$stage/usr/bin/rktop"
-ln -s server-tui-monitor "$stage/usr/bin/stm"
+install -m 0755 "$binary" "$stage/usr/bin/rktop"
+ln -s rktop "$stage/usr/bin/stm"
 
 cat > "$stage/usr/bin/stm-live" <<'WRAP'
 #!/usr/bin/env sh
-exec server-tui-monitor --live "$@"
+exec rktop --live "$@"
 WRAP
 cat > "$stage/usr/bin/stm-mock" <<'WRAP'
 #!/usr/bin/env sh
-exec server-tui-monitor --mock "$@"
+exec rktop --mock "$@"
 WRAP
 cat > "$stage/usr/bin/stm-snapshot" <<'WRAP'
 #!/usr/bin/env sh
-exec server-tui-monitor --live --snapshot "$@"
+exec rktop --live --snapshot "$@"
 WRAP
 chmod 0755 "$stage/usr/bin/stm-live" "$stage/usr/bin/stm-mock" "$stage/usr/bin/stm-snapshot"
 

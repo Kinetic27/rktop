@@ -1419,8 +1419,18 @@ fn windows_ssh_runner_release_is_documented_and_wired() {
     );
     assert_contains(
         INSTALL_PS1,
-        "https://api.github.com/repos/$Repo/releases/latest",
-        "Windows installer should resolve the latest GitHub release",
+        "https://api.github.com/repos/$Repo/releases?per_page=20",
+        "Windows installer should inspect recent GitHub releases",
+    );
+    assert_contains(
+        INSTALL_PS1,
+        "Get-WindowsZipAsset",
+        "Windows installer should select a release that has a Windows zip asset",
+    );
+    assert_contains(
+        INSTALL_PS1,
+        "no published release with a Windows x86_64 zip asset found",
+        "Windows installer should skip releases without a Windows zip asset",
     );
     assert_contains(
         INSTALL_PS1,

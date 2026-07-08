@@ -44,8 +44,8 @@ Portable downloads need **no Rust** and keep the binary, README, license, and st
 Linux x86_64:
 
 ```bash
-wget https://github.com/Kinetic27/rktop/releases/latest/download/rktop_0.1.0_linux_x86_64.tar.gz
-tar -xzf rktop_0.1.0_linux_x86_64.tar.gz
+wget https://github.com/Kinetic27/rktop/releases/latest/download/rktop_0.1.1_linux_x86_64.tar.gz
+tar -xzf rktop_0.1.1_linux_x86_64.tar.gz
 cd rktop
 ./rktop config
 ./rktop doctor
@@ -55,7 +55,7 @@ cd rktop
 Windows 10/11 PowerShell:
 
 ```powershell
-Invoke-WebRequest https://github.com/Kinetic27/rktop/releases/latest/download/rktop_v0.1.0_windows_x86_64.zip -OutFile rktop.zip
+Invoke-WebRequest https://github.com/Kinetic27/rktop/releases/latest/download/rktop_v0.1.1_windows_x86_64.zip -OutFile rktop.zip
 Expand-Archive .\rktop.zip -DestinationPath .
 cd .\rktop
 .\rktop.exe config
@@ -70,8 +70,8 @@ Portable mode uses the `config.toml` placed beside the executable before falling
 The `.deb` also needs **no Rust**. It installs `rktop` system-wide and depends on `openssh-client`:
 
 ```bash
-wget https://github.com/Kinetic27/rktop/releases/latest/download/rktop_0.1.0_amd64.deb
-sudo apt install ./rktop_0.1.0_amd64.deb
+wget https://github.com/Kinetic27/rktop/releases/latest/download/rktop_0.1.1_amd64.deb
+sudo apt install ./rktop_0.1.1_amd64.deb
 rktop config
 rktop doctor
 rktop
@@ -91,7 +91,7 @@ For unattended installs, set `RKTOP_NON_INTERACTIVE=1` on the shell that runs th
 $env:RKTOP_NON_INTERACTIVE=1; irm https://raw.githubusercontent.com/Kinetic27/rktop/main/scripts/install.ps1 | iex
 ```
 
-The installer downloads the latest Windows release zip, installs `rktop.exe` to `%LOCALAPPDATA%\rktop\bin`, and adds that directory to your user `PATH`. You can override with `RKTOP_INSTALL_DIR`, pin a version with `RKTOP_VERSION=v0.1.0`, or skip PATH updates with `RKTOP_SKIP_PATH=1`.
+The installer downloads the latest Windows release zip, installs `rktop.exe` to `%LOCALAPPDATA%\rktop\bin`, and adds that directory to your user `PATH`. You can override with `RKTOP_INSTALL_DIR`, pin a version with `RKTOP_VERSION=v0.1.1`, or skip PATH updates with `RKTOP_SKIP_PATH=1`.
 
 Windows runs `rktop.exe` natively, but only SSH monitoring of Linux hosts is supported for now. Do not add the Windows machine as `source = "local"`; local Windows CPU/RAM/disk collection needs a future Windows collector.
 
@@ -244,14 +244,14 @@ Build a local Debian package:
 
 ```bash
 scripts/build-deb.sh
-sudo apt install ./dist/rktop_0.1.0_amd64.deb
+sudo apt install ./dist/rktop_0.1.1_amd64.deb
 ```
 
 Tagged releases publish the `.deb` automatically:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
 The release workflow uploads a portable Linux tarball, a Windows zip, `rktop_<version>_<arch>.deb`, and matching SHA-256 files to GitHub Releases. This is not an official Debian/Ubuntu archive package yet; it is a GitHub-hosted `.deb` for direct install.

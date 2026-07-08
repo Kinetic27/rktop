@@ -1,6 +1,6 @@
 [package]
 name = "rktop"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 description = "A btop-inspired TUI dashboard for monitoring multiple Linux servers over SSH"
 license = "MIT"

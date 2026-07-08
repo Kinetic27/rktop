@@ -15,19 +15,18 @@
 
 ## Overview
 
-`rktop` is a live terminal dashboard for watching multiple Linux servers from one screen.
-It runs locally, connects to remote hosts over SSH, and renders CPU, memory, network, disk, uptime, kernel, hostname, and optional CPU temperature metrics in btop-style cards.
+`rktop` is a live terminal dashboard for monitoring multiple Linux servers from one screen.
+It runs locally, collects read-only metrics over SSH, and renders CPU, memory, network, disk, uptime, kernel, hostname, and optional CPU temperature in btop-style cards.
 
-- live TUI by default: `rktop`
+- live by default: `rktop`
 - no remote agent or remote install
-- read-only SSH collector
 - optional/offline hosts can be hidden
 - btop-inspired braille graphs, bars, and aligned terminal layout
-- multiple disks, ZFS pool summaries, disk aliases, and per-host disk row limits
+- multiple disks, ZFS pool summaries, aliases, and per-host disk row limits
 
 ## Install
 
-### Linux portable
+### Portable release (recommended for trying it)
 
 ```bash
 RKTOP_VERSION=v0.1.2
@@ -35,18 +34,22 @@ wget "https://github.com/Kinetic27/rktop/releases/download/${RKTOP_VERSION}/rkto
 tar -xzf "rktop_${RKTOP_VERSION#v}_linux_x86_64.tar.gz"
 cd rktop
 ./rktop config
+./rktop doctor
 ./rktop
 ```
 
-Portable mode keeps `rktop` and `config.toml` in the extracted folder.
+Portable mode keeps the binary and `config.toml` in the extracted folder.
 
 ### Debian / Ubuntu
+
+The `.deb` also needs **no Rust**.
 
 ```bash
 RKTOP_VERSION=v0.1.2
 wget "https://github.com/Kinetic27/rktop/releases/download/${RKTOP_VERSION}/rktop_${RKTOP_VERSION#v}_amd64.deb"
 sudo apt install "./rktop_${RKTOP_VERSION#v}_amd64.deb"
 rktop config
+rktop doctor
 rktop
 ```
 
@@ -60,6 +63,7 @@ Invoke-WebRequest "https://github.com/Kinetic27/rktop/releases/download/$Version
 Expand-Archive .\rktop.zip -DestinationPath . -Force
 cd .\rktop
 .\rktop.exe config
+.\rktop.exe doctor
 .\rktop.exe
 ```
 
@@ -69,7 +73,7 @@ User PATH installer:
 powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/Kinetic27/rktop/main/scripts/install.ps1 | iex"
 ```
 
-Windows can run `rktop.exe` and monitor Linux SSH hosts. Local Windows metrics are not implemented yet.
+Windows support is scoped to SSH monitoring: native `rktop.exe` can monitor Linux SSH hosts. Local Windows metrics are not implemented yet.
 
 ### Source build
 
@@ -85,13 +89,11 @@ Source install stays inside the clone under `./.rktop/`.
 
 ## Configuration
 
-Open the TUI config manager:
-
 ```bash
 rktop config
 ```
 
-`rktop config` can add SSH hosts, add the local Linux machine, test SSH, show `ssh-copy-id` guidance, reorder hosts, mark hosts optional, and edit disk display options.
+`rktop config` opens the TUI config manager. It can add SSH hosts, add the local Linux machine, test SSH, show `ssh-copy-id` guidance, reorder hosts, mark hosts optional, and edit disk display options.
 
 <p align="center">
   <img src="assets/screenshot_setting.png" alt="rktop config manager screenshot">
@@ -103,12 +105,14 @@ Remote hosts need key-based SSH:
 ssh -o BatchMode=yes user@host true
 ```
 
+No remote writes, installs, or credential prompts are performed. SSH probes and metric collection have bounded timeouts, so broken SSH commands do not hang the app indefinitely.
+
 Useful commands:
 
 ```bash
-rktop doctor          # check config and SSH collection
+rktop doctor
 rktop --live --snapshot
-rktop edit            # raw TOML fallback
+rktop edit
 ```
 
 Config lookup order:
@@ -164,6 +168,11 @@ optional = false
 
 Remote Linux hosts should provide a POSIX shell, `/proc`, `df`, `awk`, `grep`, `hostname`, and `uname`.
 
+
+## Refresh behavior
+
+`refresh_interval_ms` is clamped to `100..60000`. In the TUI, `+`/`=` and `-` adjust it in 100ms steps. Unix-like machines running `rktop` use SSH `ControlMaster=auto` and `ControlPersist=10m` for faster repeated polling. Windows OpenSSH does not use those Unix socket multiplexing options. Optional hosts that fail are skipped briefly before retrying.
+
 ## Controls
 
 | Key | Action |
@@ -187,6 +196,9 @@ Legacy compatibility wrappers are still packaged: `stm`, `stm-live`, `stm-mock`,
 
 ## Development
 
+Tests do not open live SSH connections or require remote credentials. Live SSH/manual checks are intentionally outside automated tests.
+
+
 ```bash
 cargo fmt --check
 cargo check --locked
@@ -198,6 +210,7 @@ Build a local Debian package:
 
 ```bash
 scripts/build-deb.sh
+sudo apt install ./dist/rktop_0.1.2_amd64.deb
 ```
 
-Development uses a lightweight Git Flow style. See [`docs/branching.md`](docs/branching.md).
+Development uses a lightweight Git Flow style. `main` is stable/release-ready. `develop` collects the next batch of changes before release merge-back to `main`, and work happens on topic branches. See [`docs/branching.md`](docs/branching.md).

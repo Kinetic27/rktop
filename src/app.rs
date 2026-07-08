@@ -1441,7 +1441,7 @@ fn run_selected_ssh_probe(state: &mut ConfigManagerState) {
                 state.message = format!("ssh probe skipped: {error}");
                 return;
             }
-            match crate::collectors::ssh::ssh_probe_command(&host).output() {
+            match crate::collectors::ssh::run_ssh_probe(&host) {
                 Ok(output) if output.status.success() => {
                     state.health.insert(
                         server.id.clone(),
@@ -1646,7 +1646,7 @@ fn check_config_server_health(server: &ServerConfig) -> ConfigHealthUpdate {
                     None,
                 )
             } else {
-                match crate::collectors::ssh::ssh_probe_command(host).output() {
+                match crate::collectors::ssh::run_ssh_probe(host) {
                     Ok(output) if output.status.success() => {
                         (ConfigHealthStatus::Ok("ssh ok".to_string()), None, None)
                     }
@@ -2579,8 +2579,7 @@ fn doctor_server(server: &crate::config::ServerConfig) -> Result<String> {
         }
         SetupEffect::SshKeyProbe { host } => {
             crate::collectors::ssh::validate_ssh_host(&host)?;
-            let ssh_probe = crate::collectors::ssh::ssh_probe_command(&host)
-                .output()
+            let ssh_probe = crate::collectors::ssh::run_ssh_probe(&host)
                 .with_context(|| format!("failed to run ssh probe for {host}"))?;
             if !ssh_probe.status.success() {
                 let stderr = String::from_utf8_lossy(&ssh_probe.stderr)

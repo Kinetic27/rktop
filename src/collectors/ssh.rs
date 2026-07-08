@@ -1,8 +1,14 @@
-use std::process::Command;
+use std::io::{self, Read, Write};
+use std::process::{Command, Output, Stdio};
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 
 use crate::collectors::{CollectorError, metrics_from_key_values};
 use crate::config::ServerConfig;
 use crate::model::{HostMetrics, HostSource};
+
+const SSH_TIMEOUT: Duration = Duration::from_secs(10);
+const SSH_POLL_INTERVAL: Duration = Duration::from_millis(25);
 
 const SSH_OPTIONS: &[(&str, &str)] = &[
     ("BatchMode", "yes"),
@@ -21,7 +27,7 @@ const SSH_MULTIPLEX_OPTIONS: &[(&str, &str)] = &[
 
 pub fn collect(server: &ServerConfig, host: &str) -> Result<HostMetrics, CollectorError> {
     validate_ssh_host(host)?;
-    let output = ssh_command(host).output()?;
+    let output = run_ssh_script(host, crate::collectors::local::FIXED_COLLECT_COMMAND)?;
     if !output.status.success() {
         return Err(CollectorError::CommandFailed {
             code: output.status.code(),
@@ -37,23 +43,96 @@ pub fn collect(server: &ServerConfig, host: &str) -> Result<HostMetrics, Collect
 }
 
 pub fn ssh_command(host: &str) -> Command {
-    let mut command = base_ssh_command(host);
-    command
-        .arg("sh")
-        .arg("-c")
-        .arg(crate::collectors::local::FIXED_COLLECT_COMMAND);
+    let mut command = base_ssh_command(false);
+    command.arg(host).arg("sh").arg("-s");
     command
 }
 
 pub fn ssh_probe_command(host: &str) -> Command {
-    let mut command = base_ssh_command(host);
-    command.arg("true");
+    let mut command = base_ssh_command(true);
+    command.arg(host).arg("true");
     command
 }
 
-fn base_ssh_command(host: &str) -> Command {
+fn run_ssh_script(host: &str, script: &str) -> Result<Output, CollectorError> {
+    let mut command = ssh_command(host);
+    command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    run_command_with_input(command, Some(script.as_bytes()), SSH_TIMEOUT)
+}
+
+pub fn run_ssh_probe(host: &str) -> Result<Output, CollectorError> {
+    let mut command = ssh_probe_command(host);
+    command.stdout(Stdio::piped()).stderr(Stdio::piped());
+    run_command_with_input(command, None, SSH_TIMEOUT)
+}
+
+fn run_command_with_input(
+    mut command: Command,
+    stdin: Option<&[u8]>,
+    timeout: Duration,
+) -> Result<Output, CollectorError> {
+    let mut child = command.spawn()?;
+
+    if let Some(input) = stdin
+        && let Some(mut child_stdin) = child.stdin.take()
+    {
+        match child_stdin.write_all(input) {
+            Ok(()) => {}
+            Err(error) if error.kind() == io::ErrorKind::BrokenPipe => {}
+            Err(error) => return Err(error.into()),
+        }
+    }
+
+    let started = Instant::now();
+    let status = loop {
+        if let Some(status) = child.try_wait()? {
+            break status;
+        }
+        if started.elapsed() >= timeout {
+            let _ = child.kill();
+            let status = child.wait()?;
+            let mut stderr = Vec::new();
+            if let Some(mut child_stderr) = child.stderr.take() {
+                let _ = child_stderr.read_to_end(&mut stderr);
+            }
+            let mut message = format!("SSH command timed out after {}s", timeout.as_secs());
+            let detail = String::from_utf8_lossy(&stderr).trim().to_string();
+            if !detail.is_empty() {
+                message.push_str(": ");
+                message.push_str(&detail);
+            }
+            return Err(CollectorError::CommandFailed {
+                code: status.code(),
+                stderr: message,
+            });
+        }
+        sleep(SSH_POLL_INTERVAL);
+    };
+
+    let mut stdout = Vec::new();
+    if let Some(mut child_stdout) = child.stdout.take() {
+        child_stdout.read_to_end(&mut stdout)?;
+    }
+    let mut stderr = Vec::new();
+    if let Some(mut child_stderr) = child.stderr.take() {
+        child_stderr.read_to_end(&mut stderr)?;
+    }
+
+    Ok(Output {
+        status,
+        stdout,
+        stderr,
+    })
+}
+
+fn base_ssh_command(detach_stdin: bool) -> Command {
     let mut command = Command::new("ssh");
-    command.arg("-n");
+    if detach_stdin {
+        command.arg("-n");
+    }
     for (key, value) in SSH_OPTIONS {
         command.arg("-o").arg(format!("{key}={value}"));
     }
@@ -62,7 +141,6 @@ fn base_ssh_command(host: &str) -> Command {
             command.arg("-o").arg(format!("{key}={value}"));
         }
     }
-    command.arg(host);
     command
 }
 
@@ -85,7 +163,7 @@ pub fn validate_ssh_host(host: &str) -> Result<(), CollectorError> {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn ssh_collector_uses_non_interactive_fixed_command() {
+    fn ssh_collector_uses_non_interactive_stdin_script_command() {
         super::validate_ssh_host("ExampleHost").unwrap();
         let debug = format!("{:?}", super::ssh_command("ExampleHost"));
         assert!(debug.contains("BatchMode=yes"));
@@ -95,7 +173,9 @@ mod tests {
         assert!(debug.contains("ConnectionAttempts=1"));
         assert!(debug.contains("NumberOfPasswordPrompts=0"));
         assert!(debug.contains("ExampleHost"));
-        assert!(debug.contains("/proc/loadavg"));
+        assert!(debug.contains("sh"));
+        assert!(debug.contains("-s"));
+        assert!(!debug.contains("/proc/loadavg"));
     }
 
     #[test]

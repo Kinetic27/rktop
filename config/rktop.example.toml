@@ -1,4 +1,5 @@
 # rktop config
+# Portable config: config.toml beside the rktop executable
 # User config: ~/.config/rktop/config.toml
 # System fallback: /etc/rktop/config.toml
 #

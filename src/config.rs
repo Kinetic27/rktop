@@ -129,7 +129,9 @@ pub fn enabled_servers(config: &AppConfig) -> impl Iterator<Item = &ServerConfig
 }
 
 pub fn default_config_path() -> Option<PathBuf> {
-    env_config_path().or_else(default_user_config_path)
+    env_config_path()
+        .or_else(executable_config_path_if_present)
+        .or_else(default_user_config_path)
 }
 
 pub fn default_user_config_path() -> Option<PathBuf> {
@@ -161,6 +163,7 @@ pub fn config_search_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
     for path in [
         env_config_path(),
+        executable_config_path_if_present(),
         default_user_config_path(),
         system_config_path(),
         legacy_user_config_path(),
@@ -179,6 +182,11 @@ fn env_config_path() -> Option<PathBuf> {
     env::var_os("RKTOP_CONFIG")
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
+}
+
+fn executable_config_path_if_present() -> Option<PathBuf> {
+    let path = env::current_exe().ok()?.parent()?.join(APP_CONFIG_FILE);
+    path.exists().then_some(path)
 }
 
 fn default_config_home() -> Option<PathBuf> {
@@ -387,6 +395,7 @@ pub fn default_config_toml() -> String {
 pub fn canonical_config_toml(config: &AppConfig) -> String {
     let mut output = String::from(
         "# rktop config\n\
+# Portable config: config.toml beside the rktop executable\n\
 # User config: ~/.config/rktop/config.toml\n\
 # System config fallback: /etc/rktop/config.toml\n\
 #\n\

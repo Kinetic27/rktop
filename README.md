@@ -29,8 +29,8 @@ It runs locally, collects read-only metrics over SSH, and renders CPU, memory, n
 ### Debian / Ubuntu (recommended)
 
 ```bash
-wget https://github.com/Kinetic27/rktop/releases/download/v0.1.5/rktop_0.1.5_amd64.deb
-sudo apt install ./rktop_0.1.5_amd64.deb
+wget https://github.com/Kinetic27/rktop/releases/download/v0.1.6/rktop_0.1.6_amd64.deb
+sudo apt install ./rktop_0.1.6_amd64.deb
 rktop config
 rktop doctor
 rktop
@@ -41,9 +41,23 @@ rktop
 Use this when you want `rktop` and `config.toml` to stay in one extracted folder.
 
 ```bash
-RKTOP_VERSION=v0.1.5
+RKTOP_VERSION=v0.1.6
 wget "https://github.com/Kinetic27/rktop/releases/download/${RKTOP_VERSION}/rktop_${RKTOP_VERSION#v}_linux_x86_64.tar.gz"
 tar -xzf "rktop_${RKTOP_VERSION#v}_linux_x86_64.tar.gz"
+cd rktop
+./rktop config
+./rktop doctor
+./rktop
+```
+
+### macOS
+
+Experimental: run `rktop` on macOS to monitor Linux SSH hosts. Local macOS metrics are not implemented yet.
+
+```bash
+RKTOP_VERSION=v0.1.6
+wget "https://github.com/Kinetic27/rktop/releases/download/${RKTOP_VERSION}/rktop_${RKTOP_VERSION#v}_macos_x86_64.tar.gz"
+tar -xzf "rktop_${RKTOP_VERSION#v}_macos_x86_64.tar.gz"
 cd rktop
 ./rktop config
 ./rktop doctor
@@ -55,7 +69,7 @@ cd rktop
 Portable zip:
 
 ```powershell
-$Version = "v0.1.5"
+$Version = "v0.1.6"
 Invoke-WebRequest "https://github.com/Kinetic27/rktop/releases/download/$Version/rktop_${Version}_windows_x86_64.zip" -OutFile rktop.zip
 Expand-Archive .\rktop.zip -DestinationPath . -Force
 cd .\rktop
@@ -150,7 +164,7 @@ optional = false
 | Linux x86_64 | supported |
 | Debian / Ubuntu | supported with `.deb` |
 | Windows 10/11 | supported for monitoring Linux SSH hosts |
-| macOS | not supported/tested |
+| macOS | experimental for monitoring Linux SSH hosts |
 
 ### Monitored hosts
 
@@ -207,7 +221,7 @@ Build a local Debian package:
 
 ```bash
 scripts/build-deb.sh
-sudo apt install ./dist/rktop_0.1.5_amd64.deb
+sudo apt install ./dist/rktop_0.1.6_amd64.deb
 ```
 
 Development uses a lightweight Git Flow style. `main` is stable/release-ready. `develop` collects the next batch of changes before release merge-back to `main`, and work happens on topic branches. See [`docs/branching.md`](docs/branching.md).

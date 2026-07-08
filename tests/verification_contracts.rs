@@ -14,6 +14,7 @@ const VERIFICATION_MD: &str = include_str!("../docs/verification.md");
 const CI_YML: &str = include_str!("../.github/workflows/ci.yml");
 const RELEASE_YML: &str = include_str!("../.github/workflows/release.yml");
 const BUILD_DEB_SH: &str = include_str!("../scripts/build-deb.sh");
+const INSTALL_PS1: &str = include_str!("../scripts/install.ps1");
 
 #[derive(Debug)]
 struct TomlServer<'a> {
@@ -1366,6 +1367,31 @@ fn windows_ssh_runner_release_is_documented_and_wired() {
         "Windows release should publish a zip asset",
     );
     assert_contains(
+        RELEASE_YML,
+        "scripts/install.ps1",
+        "Windows release zip should include the standalone installer",
+    );
+    assert_contains(
+        INSTALL_PS1,
+        "https://api.github.com/repos/$Repo/releases/latest",
+        "Windows installer should resolve the latest GitHub release",
+    );
+    assert_contains(
+        INSTALL_PS1,
+        "RKTOP_NON_INTERACTIVE",
+        "Windows installer should support unattended installs",
+    );
+    assert_contains(
+        INSTALL_PS1,
+        "RKTOP_INSTALL_DIR",
+        "Windows installer should support a custom install directory",
+    );
+    assert_contains(
+        INSTALL_PS1,
+        "[Environment]::SetEnvironmentVariable(\"Path\"",
+        "Windows installer should add the install directory to the user PATH",
+    );
+    assert_contains(
         CONFIG_RS,
         "APPDATA",
         "Windows config path should use the standard roaming app data directory",
@@ -1382,8 +1408,8 @@ fn windows_ssh_runner_release_is_documented_and_wired() {
     );
     assert_contains(
         README_MD,
-        r".\rktop.exe config",
-        "README should document PowerShell usage for the native Windows runner",
+        "irm https://raw.githubusercontent.com/Kinetic27/rktop/main/scripts/install.ps1 | iex",
+        "README should document the standalone PowerShell installer",
     );
     assert_contains(
         README_MD,

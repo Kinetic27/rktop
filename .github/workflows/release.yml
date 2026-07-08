@@ -50,6 +50,7 @@ jobs:
           Copy-Item target/release/server-tui-monitor.exe dist/rktop/rktop.exe
           Copy-Item README.md dist/rktop/README.md
           Copy-Item LICENSE dist/rktop/LICENSE
+          Copy-Item scripts/install.ps1 dist/rktop/install.ps1
           Compress-Archive -Path dist/rktop/* -DestinationPath dist/rktop_${{ github.ref_name }}_windows_x86_64.zip -Force
           Get-FileHash dist/rktop_${{ github.ref_name }}_windows_x86_64.zip -Algorithm SHA256 |
             ForEach-Object { "$($_.Hash.ToLower())  rktop_${{ github.ref_name }}_windows_x86_64.zip" } |

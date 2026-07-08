@@ -66,12 +66,26 @@ rktop doctor
 rktop
 ```
 
-On Windows 10/11, download the Windows zip from GitHub Releases, extract it, and run from PowerShell or Windows Terminal:
+On Windows 10/11, install from PowerShell with the standalone installer:
 
 ```powershell
-.\rktop.exe config
-.\rktop.exe doctor
-.\rktop.exe
+powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/Kinetic27/rktop/main/scripts/install.ps1 | iex"
+```
+
+For unattended installs, set `RKTOP_NON_INTERACTIVE=1` on the shell that runs the downloaded installer:
+
+```powershell
+$env:RKTOP_NON_INTERACTIVE=1; irm https://raw.githubusercontent.com/Kinetic27/rktop/main/scripts/install.ps1 | iex
+```
+
+The installer downloads the latest Windows release zip, installs `rktop.exe` to `%LOCALAPPDATA%\rktop\bin`, and adds that directory to your user `PATH`. You can override with `RKTOP_INSTALL_DIR`, pin a version with `RKTOP_VERSION=v0.1.0`, or skip PATH updates with `RKTOP_SKIP_PATH=1`.
+
+Then run from PowerShell or Windows Terminal:
+
+```powershell
+rktop config
+rktop doctor
+rktop
 ```
 
 Windows runs `rktop.exe` natively, but only SSH monitoring of Linux hosts is supported for now. Do not add the Windows machine as `source = "local"`; local Windows CPU/RAM/disk collection needs a future Windows collector.

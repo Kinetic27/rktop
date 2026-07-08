@@ -1,4 +1,4 @@
-use std::io::{self, Read, Write};
+use std::io::{self, Read};
 use std::process::{Command, Output, Stdio};
 use std::thread::{self, sleep};
 use std::time::{Duration, Instant};
@@ -43,8 +43,8 @@ pub fn collect(server: &ServerConfig, host: &str) -> Result<HostMetrics, Collect
 }
 
 pub fn ssh_command(host: &str) -> Command {
-    let mut command = base_ssh_command(false);
-    command.arg(host).arg("sh").arg("-s");
+    let mut command = base_ssh_command(true);
+    command.arg(host).arg(collect_payload_command());
     command
 }
 
@@ -54,38 +54,20 @@ pub fn ssh_probe_command(host: &str) -> Command {
     command
 }
 
-fn run_ssh_script(host: &str, script: &str) -> Result<Output, CollectorError> {
+fn run_ssh_script(host: &str, _script: &str) -> Result<Output, CollectorError> {
     let mut command = ssh_command(host);
-    command
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    run_command_with_input(command, Some(script.as_bytes()), SSH_TIMEOUT)
+    command.stdout(Stdio::piped()).stderr(Stdio::piped());
+    run_command(command, SSH_TIMEOUT)
 }
 
 pub fn run_ssh_probe(host: &str) -> Result<Output, CollectorError> {
     let mut command = ssh_probe_command(host);
     command.stdout(Stdio::piped()).stderr(Stdio::piped());
-    run_command_with_input(command, None, SSH_TIMEOUT)
+    run_command(command, SSH_TIMEOUT)
 }
 
-fn run_command_with_input(
-    mut command: Command,
-    stdin: Option<&[u8]>,
-    timeout: Duration,
-) -> Result<Output, CollectorError> {
+fn run_command(mut command: Command, timeout: Duration) -> Result<Output, CollectorError> {
     let mut child = command.spawn()?;
-
-    if let Some(input) = stdin
-        && let Some(mut child_stdin) = child.stdin.take()
-    {
-        match child_stdin.write_all(input) {
-            Ok(()) => {}
-            Err(error) if error.kind() == io::ErrorKind::BrokenPipe => {}
-            Err(error) => return Err(error.into()),
-        }
-    }
-
     let stdout_reader = read_pipe_in_background(child.stdout.take());
     let stderr_reader = read_pipe_in_background(child.stderr.take());
 
@@ -139,6 +121,38 @@ fn join_pipe_reader(reader: thread::JoinHandle<io::Result<Vec<u8>>>) -> io::Resu
         .unwrap_or_else(|_| Err(io::Error::other("SSH pipe reader thread panicked")))
 }
 
+fn collect_payload_command() -> String {
+    if cfg!(windows) {
+        let encoded = base64_encode(crate::collectors::local::FIXED_COLLECT_COMMAND.as_bytes());
+        format!("printf '%s' {encoded} | base64 -d | sh")
+    } else {
+        crate::collectors::local::FIXED_COLLECT_COMMAND.to_string()
+    }
+}
+
+fn base64_encode(input: &[u8]) -> String {
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut encoded = String::with_capacity(input.len().div_ceil(3) * 4);
+    for chunk in input.chunks(3) {
+        let b0 = chunk[0];
+        let b1 = *chunk.get(1).unwrap_or(&0);
+        let b2 = *chunk.get(2).unwrap_or(&0);
+        encoded.push(TABLE[(b0 >> 2) as usize] as char);
+        encoded.push(TABLE[(((b0 & 0b0000_0011) << 4) | (b1 >> 4)) as usize] as char);
+        if chunk.len() > 1 {
+            encoded.push(TABLE[(((b1 & 0b0000_1111) << 2) | (b2 >> 6)) as usize] as char);
+        } else {
+            encoded.push('=');
+        }
+        if chunk.len() > 2 {
+            encoded.push(TABLE[(b2 & 0b0011_1111) as usize] as char);
+        } else {
+            encoded.push('=');
+        }
+    }
+    encoded
+}
+
 fn base_ssh_command(detach_stdin: bool) -> Command {
     let mut command = Command::new("ssh");
     if detach_stdin {
@@ -184,9 +198,12 @@ mod tests {
         assert!(debug.contains("ConnectionAttempts=1"));
         assert!(debug.contains("NumberOfPasswordPrompts=0"));
         assert!(debug.contains("ExampleHost"));
-        assert!(debug.contains("sh"));
-        assert!(debug.contains("-s"));
-        assert!(!debug.contains("/proc/loadavg"));
+        if cfg!(windows) {
+            assert!(debug.contains("base64 -d | sh"));
+            assert!(!debug.contains("/proc/loadavg"));
+        } else {
+            assert!(debug.contains("/proc/loadavg"));
+        }
     }
 
     #[test]
@@ -216,6 +233,15 @@ mod tests {
             assert!(debug.contains("ControlPersist=10m"));
             assert!(debug.contains("ControlPath=~/.ssh/rktop-%C"));
         }
+    }
+
+    #[test]
+    fn base64_encoder_matches_expected_padding() {
+        assert_eq!(super::base64_encode(b""), "");
+        assert_eq!(super::base64_encode(b"f"), "Zg==");
+        assert_eq!(super::base64_encode(b"fo"), "Zm8=");
+        assert_eq!(super::base64_encode(b"foo"), "Zm9v");
+        assert_eq!(super::base64_encode(b"hello\n"), "aGVsbG8K");
     }
 
     #[test]

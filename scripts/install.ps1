@@ -50,16 +50,42 @@ function Add-UserPath($Directory) {
     return $true
 }
 
+function Get-WindowsZipAsset($Release) {
+    $Release.assets | Where-Object { $_.name -match '^rktop_.*_windows_x86_64\.zip$' } | Select-Object -First 1
+}
+
+function New-ResolvedRelease($Release, $Asset) {
+    [PSCustomObject]@{
+        Release = $Release
+        Asset = $Asset
+    }
+}
+
 function Get-ReleaseMetadata() {
     $headers = @{ "User-Agent" = "rktop-installer" }
     if ($RequestedVersion) {
         $tag = $RequestedVersion
         if (-not $tag.StartsWith("v")) { $tag = "v$tag" }
         $url = "https://api.github.com/repos/$Repo/releases/tags/$tag"
-    } else {
-        $url = "https://api.github.com/repos/$Repo/releases/latest"
+        $release = Invoke-RestMethod -Uri $url -Headers $headers
+        $asset = Get-WindowsZipAsset $release
+        if (-not $asset) {
+            Fail "no Windows x86_64 zip asset found in release $($release.tag_name)"
+        }
+        return New-ResolvedRelease $release $asset
     }
-    Invoke-RestMethod -Uri $url -Headers $headers
+
+    $url = "https://api.github.com/repos/$Repo/releases?per_page=20"
+    $releases = Invoke-RestMethod -Uri $url -Headers $headers
+    foreach ($release in $releases) {
+        if ($release.draft -or $release.prerelease) { continue }
+        $asset = Get-WindowsZipAsset $release
+        if ($asset) {
+            return New-ResolvedRelease $release $asset
+        }
+    }
+
+    Fail "no published release with a Windows x86_64 zip asset found"
 }
 
 if (-not $IsWindows -and $PSVersionTable.PSEdition -eq "Core") {
@@ -85,11 +111,9 @@ try {
 }
 
 Write-Step "Resolving latest rktop Windows release"
-$release = Get-ReleaseMetadata
-$asset = $release.assets | Where-Object { $_.name -match '^rktop_.*_windows_x86_64\.zip$' } | Select-Object -First 1
-if (-not $asset) {
-    Fail "no Windows x86_64 zip asset found in release $($release.tag_name)"
-}
+$resolved = Get-ReleaseMetadata
+$release = $resolved.Release
+$asset = $resolved.Asset
 
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("rktop-install-" + [Guid]::NewGuid().ToString("N"))
 $zipPath = Join-Path $tempRoot $asset.name

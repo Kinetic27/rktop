@@ -1375,12 +1375,12 @@ fn github_release_deb_packaging_is_wired() {
     );
     assert_contains(
         README_MD,
-        "Portable release (recommended for trying it)",
-        "README should lead with no-Rust portable release install",
+        "Debian / Ubuntu (recommended)",
+        "README should lead with the recommended .deb install on Linux",
     );
     assert_contains(
         README_MD,
-        "The `.deb` also needs **no Rust**",
+        "The `.deb` needs **no Rust**",
         "README should clarify .deb installs do not require Rust",
     );
 }

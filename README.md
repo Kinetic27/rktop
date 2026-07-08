@@ -26,7 +26,22 @@ It runs locally, collects read-only metrics over SSH, and renders CPU, memory, n
 
 ## Install
 
-### Portable release (recommended for trying it)
+### Debian / Ubuntu (recommended)
+
+The `.deb` needs **no Rust**.
+
+```bash
+RKTOP_VERSION=v0.1.5
+wget "https://github.com/Kinetic27/rktop/releases/download/${RKTOP_VERSION}/rktop_${RKTOP_VERSION#v}_amd64.deb"
+sudo apt install "./rktop_${RKTOP_VERSION#v}_amd64.deb"
+rktop config
+rktop doctor
+rktop
+```
+
+### Portable release
+
+Use this when you want `rktop` and `config.toml` to stay in one extracted folder.
 
 ```bash
 RKTOP_VERSION=v0.1.5
@@ -36,21 +51,6 @@ cd rktop
 ./rktop config
 ./rktop doctor
 ./rktop
-```
-
-Portable mode keeps the binary and `config.toml` in the extracted folder.
-
-### Debian / Ubuntu
-
-The `.deb` also needs **no Rust**.
-
-```bash
-RKTOP_VERSION=v0.1.5
-wget "https://github.com/Kinetic27/rktop/releases/download/${RKTOP_VERSION}/rktop_${RKTOP_VERSION#v}_amd64.deb"
-sudo apt install "./rktop_${RKTOP_VERSION#v}_amd64.deb"
-rktop config
-rktop doctor
-rktop
 ```
 
 ### Windows

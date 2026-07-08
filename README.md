@@ -90,16 +90,27 @@ rktop
 
 Windows runs `rktop.exe` natively, but only SSH monitoring of Linux hosts is supported for now. Do not add the Windows machine as `source = "local"`; local Windows CPU/RAM/disk collection needs a future Windows collector.
 
-Or build/install from source:
+Or build/install from source in portable mode, keeping install files and config inside the clone:
 
 ```bash
 git clone https://github.com/Kinetic27/rktop.git
 cd rktop
-scripts/install.sh
-rktop config    # create config and open the full-screen setup manager
-rktop doctor
-rktop
+scripts/install.sh --portable
+./.rktop/bin/rktop config
+./.rktop/bin/rktop doctor
+./.rktop/bin/rktop
 ```
+
+Portable mode uses:
+
+```text
+./.rktop/bin/rktop
+./.rktop/config.toml
+```
+
+When launched through `./.rktop/bin/rktop`, the wrapper sets `RKTOP_CONFIG` to `./.rktop/config.toml`, so setup stays inside the clone.
+
+For a normal user install instead, run `scripts/install.sh`; that installs wrappers to `~/.local/bin` and uses the regular config lookup.
 
 `rktop config` creates an intentionally empty first-run config at the platform config path:
 

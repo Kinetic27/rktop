@@ -129,7 +129,7 @@ pub fn enabled_servers(config: &AppConfig) -> impl Iterator<Item = &ServerConfig
 }
 
 pub fn default_config_path() -> Option<PathBuf> {
-    default_user_config_path()
+    env_config_path().or_else(default_user_config_path)
 }
 
 pub fn default_user_config_path() -> Option<PathBuf> {
@@ -554,6 +554,16 @@ mod tests {
                 config_search_paths()
                     .contains(&home.join("server-tui-monitor").join("config.toml"))
             );
+        });
+    }
+
+    #[test]
+    fn rktop_config_env_overrides_default_config_path() {
+        let home = temp_config_home("env-path");
+        with_config_env(&home, || {
+            let portable = home.join("clone").join(".rktop").join("config.toml");
+            unsafe { env::set_var("RKTOP_CONFIG", &portable) };
+            assert_eq!(default_config_path().unwrap(), portable);
         });
     }
 

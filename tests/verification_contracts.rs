@@ -14,6 +14,7 @@ const VERIFICATION_MD: &str = include_str!("../docs/verification.md");
 const CI_YML: &str = include_str!("../.github/workflows/ci.yml");
 const RELEASE_YML: &str = include_str!("../.github/workflows/release.yml");
 const BUILD_DEB_SH: &str = include_str!("../scripts/build-deb.sh");
+const INSTALL_SH: &str = include_str!("../scripts/install.sh");
 const INSTALL_PS1: &str = include_str!("../scripts/install.ps1");
 
 #[derive(Debug)]
@@ -1336,6 +1337,26 @@ fn github_release_deb_packaging_is_wired() {
         README_MD,
         "scripts/build-deb.sh",
         "README should document local Debian package builds",
+    );
+    assert_contains(
+        INSTALL_SH,
+        "--portable",
+        "Linux source installer should support clone-local portable installs",
+    );
+    assert_contains(
+        INSTALL_SH,
+        "RKTOP_CONFIG",
+        "portable wrappers should route config into the clone directory",
+    );
+    assert_contains(
+        INSTALL_SH,
+        "./.rktop/config.toml",
+        "portable installer should document clone-local config path",
+    );
+    assert_contains(
+        README_MD,
+        "scripts/install.sh --portable",
+        "README source install should show clone-local portable mode",
     );
     assert_contains(
         README_MD,

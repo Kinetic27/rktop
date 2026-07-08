@@ -1380,7 +1380,7 @@ fn github_release_deb_packaging_is_wired() {
     );
     assert_contains(
         README_MD,
-        "The `.deb` also needs **no Rust**",
+        "The `.deb` needs **no Rust**",
         "README should clarify .deb installs do not require Rust",
     );
 }

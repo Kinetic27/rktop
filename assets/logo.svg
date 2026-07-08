@@ -1,0 +1,43 @@
+<svg width="720" height="220" viewBox="0 0 720 220" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">rktop logo</title>
+  <desc id="desc">A neon terminal dashboard logo for rktop.</desc>
+  <defs>
+    <linearGradient id="border" x1="40" y1="24" x2="680" y2="196" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#69F0AE"/>
+      <stop offset="0.52" stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#FFB86B"/>
+    </linearGradient>
+    <linearGradient id="word" x1="236" y1="60" x2="590" y2="150" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E5EDF7"/>
+      <stop offset="0.45" stop-color="#67E8F9"/>
+      <stop offset="1" stop-color="#70F070"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-35%" width="140%" height="170%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#22D3EE" flood-opacity="0.45"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#69F0AE" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect width="720" height="220" rx="28" fill="#0B111B"/>
+  <rect x="18" y="18" width="684" height="184" rx="24" stroke="url(#border)" stroke-width="3"/>
+  <rect x="36" y="38" width="648" height="144" rx="16" fill="#111A27" stroke="#31445D" stroke-width="2"/>
+  <g filter="url(#glow)">
+    <path d="M72 76L96 92L72 108" stroke="#69F0AE" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M112 110H150" stroke="#69F0AE" stroke-width="9" stroke-linecap="round"/>
+    <g fill="#67E8F9">
+      <rect x="72" y="142" width="8" height="8" rx="2"/><rect x="86" y="128" width="8" height="22" rx="2"/><rect x="100" y="136" width="8" height="14" rx="2"/><rect x="114" y="118" width="8" height="32" rx="2"/>
+      <rect x="128" y="132" width="8" height="18" rx="2"/><rect x="142" y="140" width="8" height="10" rx="2"/><rect x="156" y="124" width="8" height="26" rx="2"/><rect x="170" y="136" width="8" height="14" rx="2"/>
+    </g>
+    <g fill="#69F0AE">
+      <rect x="72" y="52" width="66" height="8" rx="4"/><rect x="72" y="64" width="112" height="8" rx="4" opacity="0.55"/><rect x="72" y="120" width="156" height="4" rx="2" opacity="0.5"/>
+    </g>
+    <text x="242" y="124" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="68" font-weight="800" fill="url(#word)">rktop</text>
+    <text x="246" y="156" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="18" fill="#9FB1C6">multi-server terminal dashboard</text>
+    <g transform="translate(568 70)">
+      <rect x="0" y="0" width="72" height="70" rx="10" stroke="#FFB86B" stroke-width="3" fill="#151C28"/>
+      <text x="12" y="24" font-family="monospace" font-size="13" font-weight="700" fill="#FFB86B">disk</text>
+      <rect x="12" y="39" width="48" height="9" rx="4" fill="#2A3140"/>
+      <rect x="12" y="39" width="29" height="9" rx="4" fill="#FFB86B"/>
+      <text x="12" y="61" font-family="monospace" font-size="10" fill="#E5EDF7">63%</text>
+    </g>
+  </g>
+</svg>

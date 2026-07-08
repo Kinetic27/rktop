@@ -1,0 +1,35 @@
+# rktop config
+# User config: ~/.config/rktop/config.toml
+# System fallback: /etc/rktop/config.toml
+#
+# First-run config is intentionally empty. Add servers with:
+#   rktop config
+#
+# source can be:
+#   "local"          collect this machine directly
+#   "ssh"            collect via non-interactive SSH key auth
+#   "proxmox"        reserved for future API collectors
+#   "truenas-scale"  reserved for future API collectors
+#
+# SSH hosts should be aliases from ~/.ssh/config or user@host values that work with:
+#   ssh -o BatchMode=yes <host> true
+#
+# Optional per-server display tuning:
+#   disk_max_rows = 6
+#   disk_aliases = { "/mnt/fast" = "fast", "/mnt/tank" = "tank" }
+#
+# Example server entries:
+#
+# [[servers]]
+# id = "local"
+# name = "Local"
+# source = "local"
+#
+# [[servers]]
+# id = "server-1"
+# name = "Server 1"
+# source = "ssh"
+# host = "server-1"
+# optional = true
+
+refresh_interval_ms = 1000

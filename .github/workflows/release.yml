@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  deb:
+    name: build debian package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build .deb
+        run: scripts/build-deb.sh
+      - name: Verify .deb metadata
+        run: |
+          dpkg-deb --info dist/*.deb
+          dpkg-deb --contents dist/*.deb | grep -E './usr/bin/server-tui-monitor$'
+          dpkg-deb --contents dist/*.deb | grep -E './usr/bin/rktop -> server-tui-monitor$'
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --generate-notes --title "$TAG"
+          fi
+
+  windows:
+    name: build windows package
+    runs-on: windows-latest
+    needs: deb
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build Windows executable
+        shell: pwsh
+        run: cargo build --release --locked
+      - name: Package Windows zip
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist, dist/rktop | Out-Null
+          Copy-Item target/release/server-tui-monitor.exe dist/rktop/rktop.exe
+          Copy-Item README.md dist/rktop/README.md
+          Copy-Item LICENSE dist/rktop/LICENSE
+          Compress-Archive -Path dist/rktop/* -DestinationPath dist/rktop_${{ github.ref_name }}_windows_x86_64.zip -Force
+          Get-FileHash dist/rktop_${{ github.ref_name }}_windows_x86_64.zip -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash.ToLower())  rktop_${{ github.ref_name }}_windows_x86_64.zip" } |
+            Set-Content dist/rktop_${{ github.ref_name }}_windows_x86_64.zip.sha256
+      - name: Upload Windows package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        shell: pwsh
+        run: gh release upload $env:TAG dist/rktop_${{ github.ref_name }}_windows_x86_64.zip dist/rktop_${{ github.ref_name }}_windows_x86_64.zip.sha256 --clobber

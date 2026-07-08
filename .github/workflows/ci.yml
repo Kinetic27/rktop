@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  rust:
+    name: fmt, check, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: cargo fmt
+        run: cargo fmt --check
+      - name: cargo check
+        run: cargo check --locked
+      - name: cargo test
+        run: cargo test --locked
+
+
+  windows-check:
+    name: windows check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: cargo check
+        run: cargo check --locked

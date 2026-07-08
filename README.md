@@ -29,7 +29,7 @@ It runs locally, collects read-only metrics over SSH, and renders CPU, memory, n
 ### Portable release (recommended for trying it)
 
 ```bash
-RKTOP_VERSION=v0.1.2
+RKTOP_VERSION=v0.1.4
 wget "https://github.com/Kinetic27/rktop/releases/download/${RKTOP_VERSION}/rktop_${RKTOP_VERSION#v}_linux_x86_64.tar.gz"
 tar -xzf "rktop_${RKTOP_VERSION#v}_linux_x86_64.tar.gz"
 cd rktop
@@ -45,7 +45,7 @@ Portable mode keeps the binary and `config.toml` in the extracted folder.
 The `.deb` also needs **no Rust**.
 
 ```bash
-RKTOP_VERSION=v0.1.2
+RKTOP_VERSION=v0.1.4
 wget "https://github.com/Kinetic27/rktop/releases/download/${RKTOP_VERSION}/rktop_${RKTOP_VERSION#v}_amd64.deb"
 sudo apt install "./rktop_${RKTOP_VERSION#v}_amd64.deb"
 rktop config
@@ -58,7 +58,7 @@ rktop
 Portable zip:
 
 ```powershell
-$Version = "v0.1.2"
+$Version = "v0.1.4"
 Invoke-WebRequest "https://github.com/Kinetic27/rktop/releases/download/$Version/rktop_${Version}_windows_x86_64.zip" -OutFile rktop.zip
 Expand-Archive .\rktop.zip -DestinationPath . -Force
 cd .\rktop
@@ -210,7 +210,7 @@ Build a local Debian package:
 
 ```bash
 scripts/build-deb.sh
-sudo apt install ./dist/rktop_0.1.2_amd64.deb
+sudo apt install ./dist/rktop_0.1.4_amd64.deb
 ```
 
 Development uses a lightweight Git Flow style. `main` is stable/release-ready. `develop` collects the next batch of changes before release merge-back to `main`, and work happens on topic branches. See [`docs/branching.md`](docs/branching.md).

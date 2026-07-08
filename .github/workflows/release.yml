@@ -76,3 +76,32 @@ jobs:
           TAG: ${{ github.ref_name }}
         shell: pwsh
         run: gh release upload $env:TAG dist/rktop_${{ github.ref_name }}_windows_x86_64.zip dist/rktop_${{ github.ref_name }}_windows_x86_64.zip.sha256 --clobber
+
+  macos:
+    name: build macOS package
+    runs-on: macos-15-intel
+    needs: deb
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build macOS executable
+        run: cargo build --release --locked
+      - name: Package macOS tarball
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          stage="target/portable/rktop"
+          rm -rf "$stage" dist
+          mkdir -p "$stage" dist
+          cp target/release/rktop "$stage/rktop"
+          cp config/rktop.example.toml "$stage/config.toml"
+          cp README.md "$stage/README.md"
+          cp LICENSE "$stage/LICENSE"
+          tar -C target/portable -czf "dist/rktop_${version}_macos_x86_64.tar.gz" rktop
+          shasum -a 256 "dist/rktop_${version}_macos_x86_64.tar.gz" > "dist/rktop_${version}_macos_x86_64.tar.gz.sha256"
+      - name: Upload macOS package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "$TAG" dist/rktop_*_macos_x86_64.tar.gz dist/rktop_*_macos_x86_64.tar.gz.sha256 --clobber

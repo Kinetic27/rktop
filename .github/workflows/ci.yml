@@ -28,3 +28,20 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: cargo check
         run: cargo check --locked
+
+  macos-check:
+    name: macOS check
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: cargo check
+        run: cargo check --locked
+      - name: cargo test
+        run: cargo test --locked
+      - name: build release binary
+        run: cargo build --release --locked
+      - name: smoke test CLI
+        run: |
+          ./target/release/rktop --help
+          ./target/release/rktop --mock --snapshot --once

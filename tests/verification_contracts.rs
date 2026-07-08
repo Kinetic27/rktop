@@ -1380,13 +1380,52 @@ fn github_release_deb_packaging_is_wired() {
     );
     assert_contains(
         README_MD,
-        "wget https://github.com/Kinetic27/rktop/releases/download/v0.1.5/rktop_0.1.5_amd64.deb",
+        "wget https://github.com/Kinetic27/rktop/releases/download/v0.1.6/rktop_0.1.6_amd64.deb",
         "README .deb install should be directly copy-pasteable",
     );
     assert_contains(
         README_MD,
-        "sudo apt install ./rktop_0.1.5_amd64.deb",
+        "sudo apt install ./rktop_0.1.6_amd64.deb",
         "README .deb install should avoid shell parameter expansion",
+    );
+}
+
+#[test]
+fn macos_runner_release_is_documented_and_wired() {
+    assert_contains(
+        CI_YML,
+        "macos-15-intel",
+        "CI should check the native macOS Intel runner",
+    );
+    assert_contains(
+        CI_YML,
+        "./target/release/rktop --mock --snapshot --once",
+        "macOS CI should smoke test the built CLI without live SSH",
+    );
+    assert_contains(
+        RELEASE_YML,
+        "build macOS package",
+        "release workflow should build a native macOS package",
+    );
+    assert_contains(
+        RELEASE_YML,
+        "rktop_${version}_macos_x86_64.tar.gz",
+        "release workflow should publish a macOS portable tarball",
+    );
+    assert_contains(
+        README_MD,
+        "macOS | experimental for monitoring Linux SSH hosts",
+        "README should mark macOS support as experimental SSH monitoring",
+    );
+    assert_contains(
+        README_MD,
+        "rktop_${RKTOP_VERSION#v}_macos_x86_64.tar.gz",
+        "README should document the macOS portable tarball",
+    );
+    assert_contains(
+        README_MD,
+        "Local macOS metrics are not implemented yet",
+        "README should not imply local macOS metrics are supported",
     );
 }
 

@@ -25,36 +25,17 @@
 - **Polished terminal UI** — braille history graphs, rule-filled sections, aligned disk rows, and adaptive layout.
 - **Storage-friendly** — multiple disks, disk aliases, row limits, and ZFS/TrueNAS-style mount cleanup.
 
-## Supported environments
-
-`rktop` is Linux-first. It does not install agents on monitored machines; it reads standard Linux system files and commands locally or through SSH.
-
-### Machine running `rktop`
-
-| environment | status | notes |
-| --- | --- | --- |
-| Debian/Ubuntu Linux x86_64 | supported | official GitHub Release `.deb` target |
-| Other Linux distributions | supported with portable release or source build | portable release needs no Rust; source build needs Rust stable |
-| Linux arm64/armhf | buildable | `scripts/build-deb.sh` supports `arm64`/`armhf`, but current release assets are amd64 only |
-| macOS | not supported/tested | may build partially, but local collection expects Linux `/proc` and Linux tool output |
-| Windows 10/11 | supported for SSH monitoring | native `rktop.exe` can monitor Linux SSH hosts; local Windows metrics are not implemented yet |
-
-### Monitored hosts
-
-| target | status | notes |
-| --- | --- | --- |
-| Generic Linux server over SSH | supported | needs key auth and non-interactive `ssh <host> true` |
-| Local Linux machine | supported | `source = "local"` / add “local machine” in `rktop config` |
-| Proxmox host/VM | supported via SSH | treated as a normal Linux host; Proxmox API is not implemented yet |
-| Oracle/VPS Linux host | supported via SSH | treated as a normal Linux host |
-| Linux NAS / TrueNAS SCALE | supported via SSH when Linux shell access works | ZFS pools are summarized when `zpool` is available; TrueNAS API is not implemented yet |
-| TrueNAS CORE / FreeBSD / BSD | not supported | collector expects Linux `/proc` |
-| macOS remote | not supported | collector expects Linux `/proc` and Linux `df` output |
-| Windows remote | not supported | no WinRM/PowerShell collector |
-
-Remote Linux hosts need a POSIX shell plus common Linux files/commands: `/proc/loadavg`, `/proc/uptime`, `/proc/cpuinfo`, `/proc/meminfo`, `/proc/net/dev`, `df -kP`, `awk`, `grep`, `hostname`, and `uname`. CPU temperature is shown only when Linux hwmon exposes `coretemp` or `k10temp`.
-
 ## Quick start
+
+Pick the install style by how much you want `rktop` to touch the machine:
+
+| install style | Rust needed? | where files live | config location | best for |
+| --- | --- | --- | --- | --- |
+| Portable release | no | the extracted `rktop/` folder | `rktop/config.toml` beside the executable | trying it, USB/folder-style installs, not touching home/system paths |
+| Debian/Ubuntu `.deb` | no | `/usr/bin` and package-managed system paths | user config, then `/etc/rktop/config.toml` fallback | normal Linux system install |
+| Windows zip | no | the extracted `rktop/` folder | `rktop/config.toml` beside `rktop.exe` | trying it from PowerShell/Windows Terminal |
+| Windows installer | no | `%LOCALAPPDATA%\rktop\bin` plus user `PATH` | bundled/user config lookup | convenient `rktop` command on Windows |
+| Source build | yes | `./.rktop/` inside the clone | `./.rktop/config.toml` | development only |
 
 ### Portable release (recommended for trying it)
 
@@ -161,6 +142,35 @@ The SSH collector is intentionally read-only and non-interactive. Password promp
 ssh -o BatchMode=yes server-1 true
 ```
 
+## Supported environments
+
+`rktop` is Linux-first. It does not install agents on monitored machines; it reads standard Linux system files and commands locally or through SSH.
+
+### Machine running `rktop`
+
+| environment | status | notes |
+| --- | --- | --- |
+| Debian/Ubuntu Linux x86_64 | supported | official GitHub Release `.deb` target |
+| Other Linux distributions | supported with portable release or source build | portable release needs no Rust; source build needs Rust stable |
+| Linux arm64/armhf | buildable | `scripts/build-deb.sh` supports `arm64`/`armhf`, but current release assets are amd64 only |
+| macOS | not supported/tested | may build partially, but local collection expects Linux `/proc` and Linux tool output |
+| Windows 10/11 | supported for SSH monitoring | native `rktop.exe` can monitor Linux SSH hosts; local Windows metrics are not implemented yet |
+
+### Monitored hosts
+
+| target | status | notes |
+| --- | --- | --- |
+| Generic Linux server over SSH | supported | needs key auth and non-interactive `ssh <host> true` |
+| Local Linux machine | supported | `source = "local"` / add “local machine” in `rktop config` |
+| Proxmox host/VM | supported via SSH | treated as a normal Linux host; Proxmox API is not implemented yet |
+| Oracle/VPS Linux host | supported via SSH | treated as a normal Linux host |
+| Linux NAS / TrueNAS SCALE | supported via SSH when Linux shell access works | ZFS pools are summarized when `zpool` is available; TrueNAS API is not implemented yet |
+| TrueNAS CORE / FreeBSD / BSD | not supported | collector expects Linux `/proc` |
+| macOS remote | not supported | collector expects Linux `/proc` and Linux `df` output |
+| Windows remote | not supported | no WinRM/PowerShell collector |
+
+Remote Linux hosts need a POSIX shell plus common Linux files/commands: `/proc/loadavg`, `/proc/uptime`, `/proc/cpuinfo`, `/proc/meminfo`, `/proc/net/dev`, `df -kP`, `awk`, `grep`, `hostname`, and `uname`. CPU temperature is shown only when Linux hwmon exposes `coretemp` or `k10temp`.
+
 ## Config
 
 Use the full-screen setup manager for normal configuration:
@@ -185,20 +195,18 @@ The setup manager creates the platform config file on first run and lets you:
 
 ### Manual TOML reference
 
-Most users do not need to write TOML by hand. If you do, prefer the user config file:
+Most users do not need to write TOML by hand; use `rktop config` first. If you do edit TOML manually, edit the config file that matches your install style:
 
-```text
-Linux:   ~/.config/rktop/config.toml
-Windows: %APPDATA%\rktop\config.toml
-```
+| install style | manual config file |
+| --- | --- |
+| Portable Linux release | `./config.toml` in the extracted `rktop/` folder |
+| Portable Windows zip | `.\config.toml` beside `rktop.exe` |
+| Source portable install | `./.rktop/config.toml` inside the clone |
+| Normal Linux user config | `~/.config/rktop/config.toml` or `$XDG_CONFIG_HOME/rktop/config.toml` |
+| Normal Windows user config | `%APPDATA%\rktop\config.toml` |
+| Shared Linux fallback | `/etc/rktop/config.toml` |
 
-For a shared Linux system default, create:
-
-```text
-/etc/rktop/config.toml
-```
-
-User config wins over the system config. The old `~/.config/server-tui-monitor/config.toml` path is still read as a legacy fallback when no new config exists.
+Explicit `--config PATH` and `$RKTOP_CONFIG` always win. Portable `config.toml` beside the executable wins over user/system config, so a downloaded folder stays self-contained. The old `~/.config/server-tui-monitor/config.toml` path is still read as a legacy fallback when no new config exists.
 
 Useful fields:
 

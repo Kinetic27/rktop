@@ -14,6 +14,8 @@ const VERIFICATION_MD: &str = include_str!("../docs/verification.md");
 const CI_YML: &str = include_str!("../.github/workflows/ci.yml");
 const RELEASE_YML: &str = include_str!("../.github/workflows/release.yml");
 const BUILD_DEB_SH: &str = include_str!("../scripts/build-deb.sh");
+const INSTALL_SH: &str = include_str!("../scripts/install.sh");
+const INSTALL_PS1: &str = include_str!("../scripts/install.ps1");
 
 #[derive(Debug)]
 struct TomlServer<'a> {
@@ -627,7 +629,7 @@ fn first_run_config_flow_is_wired_into_cli() {
     );
     assert_contains(
         APP_RS,
-        "server-tui-monitor setup [--config PATH]",
+        "rktop setup [--config PATH]",
         "help output should list setup alias",
     );
     assert_contains(
@@ -779,14 +781,14 @@ fn setup_config_and_edit_commands_create_config_and_validate_with_noop_editor() 
     fs::create_dir_all(&dir).expect("failed to create temp dir");
     for command in ["setup", "config"] {
         let command_config = dir.join(format!("{command}.toml"));
-        let output = Command::new(env!("CARGO_BIN_EXE_server-tui-monitor"))
+        let output = Command::new(env!("CARGO_BIN_EXE_rktop"))
             .arg(command)
             .arg("--config")
             .arg(&command_config)
             .env("EDITOR", "true")
             .env_remove("VISUAL")
             .output()
-            .unwrap_or_else(|error| panic!("failed to run server-tui-monitor {command}: {error}"));
+            .unwrap_or_else(|error| panic!("failed to run rktop {command}: {error}"));
 
         assert!(
             output.status.success(),
@@ -816,14 +818,14 @@ fn setup_config_and_edit_commands_create_config_and_validate_with_noop_editor() 
     }
 
     let edit_config = dir.join("edit.toml");
-    let edit_output = Command::new(env!("CARGO_BIN_EXE_server-tui-monitor"))
+    let edit_output = Command::new(env!("CARGO_BIN_EXE_rktop"))
         .arg("edit")
         .arg("--config")
         .arg(&edit_config)
         .env("EDITOR", "true")
         .env_remove("VISUAL")
         .output()
-        .expect("failed to run server-tui-monitor edit");
+        .expect("failed to run rktop edit");
     assert!(
         edit_output.status.success(),
         "edit command failed: status={:?}\nstdout={}\nstderr={}",
@@ -870,7 +872,7 @@ source = "local"
 "#,
     )
     .expect("failed to write local config");
-    let local_output = Command::new(env!("CARGO_BIN_EXE_server-tui-monitor"))
+    let local_output = Command::new(env!("CARGO_BIN_EXE_rktop"))
         .args(["setup", "--config"])
         .arg(&local_config)
         .env("EDITOR", "true")
@@ -903,7 +905,7 @@ host = "ssh-host"
 "#,
     )
     .expect("failed to write ssh config");
-    let ssh_output = Command::new(env!("CARGO_BIN_EXE_server-tui-monitor"))
+    let ssh_output = Command::new(env!("CARGO_BIN_EXE_rktop"))
         .args(["setup", "--config"])
         .arg(&ssh_config)
         .env("EDITOR", "true")
@@ -1011,12 +1013,12 @@ host = "fake-host"
 
     let old_path = std::env::var_os("PATH").unwrap_or_default();
     let path = format!("{}:{}", bin_dir.display(), old_path.to_string_lossy());
-    let output = Command::new(env!("CARGO_BIN_EXE_server-tui-monitor"))
+    let output = Command::new(env!("CARGO_BIN_EXE_rktop"))
         .args(["doctor", "--config"])
         .arg(&config)
         .env("PATH", path)
         .output()
-        .expect("failed to run server-tui-monitor doctor");
+        .expect("failed to run rktop doctor");
 
     assert!(
         output.status.success(),
@@ -1094,11 +1096,11 @@ host = "storage"
     )
     .expect("failed to write temp snapshot config");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_server-tui-monitor"))
+    let output = Command::new(env!("CARGO_BIN_EXE_rktop"))
         .args(["--mock", "--snapshot", "--config"])
         .arg(&config)
         .output()
-        .expect("failed to run server-tui-monitor --mock --snapshot");
+        .expect("failed to run rktop --mock --snapshot");
 
     assert!(
         output.status.success(),
@@ -1308,8 +1310,8 @@ fn github_release_deb_packaging_is_wired() {
     );
     assert_contains(
         BUILD_DEB_SH,
-        "ln -s server-tui-monitor",
-        "rktop aliases should point at the main binary in .deb packages",
+        "ln -s rktop",
+        "stm aliases should point at the rktop binary in .deb packages",
     );
     assert_contains(
         BUILD_DEB_SH,
@@ -1337,9 +1339,49 @@ fn github_release_deb_packaging_is_wired() {
         "README should document local Debian package builds",
     );
     assert_contains(
+        INSTALL_SH,
+        "--portable",
+        "Linux source installer should support clone-local portable installs",
+    );
+    assert_contains(
+        INSTALL_SH,
+        "RKTOP_CONFIG",
+        "portable wrappers should route config into the clone directory",
+    );
+    assert_contains(
+        INSTALL_SH,
+        "./.rktop/config.toml",
+        "portable installer should document clone-local config path",
+    );
+    assert_contains(
+        CONFIG_RS,
+        "current_exe()",
+        "portable release config lookup should check config.toml beside the executable",
+    );
+    assert_contains(
+        RELEASE_YML,
+        "rktop_${version}_linux_x86_64.tar.gz",
+        "release workflow should publish a Linux portable tarball",
+    );
+    assert_contains(
+        RELEASE_YML,
+        "config/rktop.example.toml",
+        "portable release packages should include a starter config.toml",
+    );
+    assert_contains(
         README_MD,
-        "GitHub Release `.deb`",
-        "README should document release .deb installation",
+        "scripts/install.sh",
+        "README source install should show clone-local portable mode",
+    );
+    assert_contains(
+        README_MD,
+        "Portable release (recommended for trying it)",
+        "README should lead with no-Rust portable release install",
+    );
+    assert_contains(
+        README_MD,
+        "The `.deb` also needs **no Rust**",
+        "README should clarify .deb installs do not require Rust",
     );
 }
 
@@ -1366,6 +1408,31 @@ fn windows_ssh_runner_release_is_documented_and_wired() {
         "Windows release should publish a zip asset",
     );
     assert_contains(
+        RELEASE_YML,
+        "scripts/install.ps1",
+        "Windows release zip should include the standalone installer",
+    );
+    assert_contains(
+        INSTALL_PS1,
+        "https://api.github.com/repos/$Repo/releases/latest",
+        "Windows installer should resolve the latest GitHub release",
+    );
+    assert_contains(
+        INSTALL_PS1,
+        "RKTOP_NON_INTERACTIVE",
+        "Windows installer should support unattended installs",
+    );
+    assert_contains(
+        INSTALL_PS1,
+        "RKTOP_INSTALL_DIR",
+        "Windows installer should support a custom install directory",
+    );
+    assert_contains(
+        INSTALL_PS1,
+        "[Environment]::SetEnvironmentVariable(\"Path\"",
+        "Windows installer should add the install directory to the user PATH",
+    );
+    assert_contains(
         CONFIG_RS,
         "APPDATA",
         "Windows config path should use the standard roaming app data directory",
@@ -1382,8 +1449,8 @@ fn windows_ssh_runner_release_is_documented_and_wired() {
     );
     assert_contains(
         README_MD,
-        r".\rktop.exe config",
-        "README should document PowerShell usage for the native Windows runner",
+        "irm https://raw.githubusercontent.com/Kinetic27/rktop/main/scripts/install.ps1 | iex",
+        "README should document the standalone PowerShell installer",
     );
     assert_contains(
         README_MD,

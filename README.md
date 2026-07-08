@@ -25,6 +25,123 @@
 - **Polished terminal UI** — braille history graphs, rule-filled sections, aligned disk rows, and adaptive layout.
 - **Storage-friendly** — multiple disks, disk aliases, row limits, and ZFS/TrueNAS-style mount cleanup.
 
+## Quick start
+
+Pick the install style by how much you want `rktop` to touch the machine:
+
+| install style | Rust needed? | where files live | config location | best for |
+| --- | --- | --- | --- | --- |
+| Portable release | no | the extracted `rktop/` folder | `rktop/config.toml` beside the executable | trying it, USB/folder-style installs, not touching home/system paths |
+| Debian/Ubuntu `.deb` | no | `/usr/bin` and package-managed system paths | user config, then `/etc/rktop/config.toml` fallback | normal Linux system install |
+| Windows zip | no | the extracted `rktop/` folder | `rktop/config.toml` beside `rktop.exe` | trying it from PowerShell/Windows Terminal |
+| Windows installer | no | `%LOCALAPPDATA%\rktop\bin` plus user `PATH` | bundled/user config lookup | convenient `rktop` command on Windows |
+| Source build | yes | `./.rktop/` inside the clone | `./.rktop/config.toml` | development only |
+
+### Portable release (recommended for trying it)
+
+Portable downloads need **no Rust** and keep the binary, README, license, and starter config in one folder. Delete the folder to remove it.
+
+Linux x86_64:
+
+```bash
+wget https://github.com/Kinetic27/rktop/releases/latest/download/rktop_0.1.1_linux_x86_64.tar.gz
+tar -xzf rktop_0.1.1_linux_x86_64.tar.gz
+cd rktop
+./rktop config
+./rktop doctor
+./rktop
+```
+
+Windows 10/11 PowerShell:
+
+```powershell
+Invoke-WebRequest https://github.com/Kinetic27/rktop/releases/latest/download/rktop_v0.1.1_windows_x86_64.zip -OutFile rktop.zip
+Expand-Archive .\rktop.zip -DestinationPath .
+cd .\rktop
+.\rktop.exe config
+.\rktop.exe doctor
+.\rktop.exe
+```
+
+Portable mode uses the `config.toml` placed beside the executable before falling back to system/user config paths.
+
+### Debian/Ubuntu `.deb`
+
+The `.deb` also needs **no Rust**. It installs `rktop` system-wide and depends on `openssh-client`:
+
+```bash
+wget https://github.com/Kinetic27/rktop/releases/latest/download/rktop_0.1.1_amd64.deb
+sudo apt install ./rktop_0.1.1_amd64.deb
+rktop config
+rktop doctor
+rktop
+```
+
+### Windows standalone installer
+
+If you want `rktop` on your user `PATH`, run the PowerShell installer:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/Kinetic27/rktop/main/scripts/install.ps1 | iex"
+```
+
+For unattended installs, set `RKTOP_NON_INTERACTIVE=1` on the shell that runs the downloaded installer:
+
+```powershell
+$env:RKTOP_NON_INTERACTIVE=1; irm https://raw.githubusercontent.com/Kinetic27/rktop/main/scripts/install.ps1 | iex
+```
+
+The installer downloads the latest Windows release zip, installs `rktop.exe` to `%LOCALAPPDATA%\rktop\bin`, and adds that directory to your user `PATH`. You can override with `RKTOP_INSTALL_DIR`, pin a version with `RKTOP_VERSION=v0.1.1`, or skip PATH updates with `RKTOP_SKIP_PATH=1`.
+
+Windows runs `rktop.exe` natively, but only SSH monitoring of Linux hosts is supported for now. Do not add the Windows machine as `source = "local"`; local Windows CPU/RAM/disk collection needs a future Windows collector.
+
+### Source build / development
+
+Building from source **does require Rust**. The helper script intentionally creates a clone-local portable install so it does not touch `~/.local/bin` or global config paths:
+
+```bash
+git clone https://github.com/Kinetic27/rktop.git
+cd rktop
+scripts/install.sh
+./.rktop/bin/rktop config
+./.rktop/bin/rktop doctor
+./.rktop/bin/rktop
+```
+
+Source portable mode uses:
+
+```text
+./.rktop/bin/rktop
+./.rktop/config.toml
+```
+
+The wrapper sets `RKTOP_CONFIG` to `./.rktop/config.toml`, so source-build setup stays inside the clone. For regular users who do not want Rust, use the portable release or `.deb` instead.
+
+### First-run setup
+
+`rktop config` creates an intentionally empty first-run config when needed, then opens the full-screen setup manager where you add servers from `~/.ssh/config`, type a direct `user@host` target, add the local Linux machine, test SSH, show the exact `ssh-copy-id` command when needed, reorder entries, and save. `rktop setup` is an alias for the same setup manager; `rktop edit` opens the raw TOML in `$VISUAL`/`$EDITOR` as a fallback.
+
+Runtime config lookup order is:
+
+```text
+1. --config PATH
+2. $RKTOP_CONFIG
+3. ./config.toml beside the rktop executable, when present
+4. ~/.config/rktop/config.toml or $XDG_CONFIG_HOME/rktop/config.toml
+5. /etc/rktop/config.toml on Linux
+6. legacy ~/.config/server-tui-monitor/config.toml
+```
+
+<p align="center">
+  <img src="assets/screenshot_setting.png" alt="rktop setup/config manager screenshot">
+</p>
+
+The SSH collector is intentionally read-only and non-interactive. Password prompts are disabled, remote installs/writes are not attempted during monitoring, and every SSH server must already work with key auth. Monitoring and `doctor` use bounded SSH calls with `-n`, `BatchMode=yes`, password and keyboard-interactive auth disabled, one connection attempt, and zero password prompts:
+
+```bash
+ssh -o BatchMode=yes server-1 true
+```
+
 ## Supported environments
 
 `rktop` is Linux-first. It does not install agents on monitored machines; it reads standard Linux system files and commands locally or through SSH.
@@ -34,7 +151,7 @@
 | environment | status | notes |
 | --- | --- | --- |
 | Debian/Ubuntu Linux x86_64 | supported | official GitHub Release `.deb` target |
-| Other Linux distributions | supported from source | requires Rust stable, `ssh`, and a Unicode-capable terminal |
+| Other Linux distributions | supported with portable release or source build | portable release needs no Rust; source build needs Rust stable |
 | Linux arm64/armhf | buildable | `scripts/build-deb.sh` supports `arm64`/`armhf`, but current release assets are amd64 only |
 | macOS | not supported/tested | may build partially, but local collection expects Linux `/proc` and Linux tool output |
 | Windows 10/11 | supported for SSH monitoring | native `rktop.exe` can monitor Linux SSH hosts; local Windows metrics are not implemented yet |
@@ -53,68 +170,6 @@
 | Windows remote | not supported | no WinRM/PowerShell collector |
 
 Remote Linux hosts need a POSIX shell plus common Linux files/commands: `/proc/loadavg`, `/proc/uptime`, `/proc/cpuinfo`, `/proc/meminfo`, `/proc/net/dev`, `df -kP`, `awk`, `grep`, `hostname`, and `uname`. CPU temperature is shown only when Linux hwmon exposes `coretemp` or `k10temp`.
-
-## Quick start
-
-Install from a GitHub Release `.deb` on Debian/Ubuntu x86_64:
-
-```bash
-wget https://github.com/Kinetic27/rktop/releases/latest/download/rktop_0.1.0_amd64.deb
-sudo apt install ./rktop_0.1.0_amd64.deb
-rktop config
-rktop doctor
-rktop
-```
-
-On Windows 10/11, download the Windows zip from GitHub Releases, extract it, and run from PowerShell or Windows Terminal:
-
-```powershell
-.\rktop.exe config
-.\rktop.exe doctor
-.\rktop.exe
-```
-
-Windows runs `rktop.exe` natively, but only SSH monitoring of Linux hosts is supported for now. Do not add the Windows machine as `source = "local"`; local Windows CPU/RAM/disk collection needs a future Windows collector.
-
-Or build/install from source:
-
-```bash
-git clone https://github.com/Kinetic27/rktop.git
-cd rktop
-scripts/install.sh
-rktop config    # create config and open the full-screen setup manager
-rktop doctor
-rktop
-```
-
-`rktop config` creates an intentionally empty first-run config at the platform config path:
-
-```text
-Linux:   ~/.config/rktop/config.toml
-Windows: %APPDATA%\rktop\config.toml
-```
-
-Runtime config lookup order is:
-
-```text
-1. --config PATH
-2. $RKTOP_CONFIG
-3. ~/.config/rktop/config.toml or $XDG_CONFIG_HOME/rktop/config.toml
-4. /etc/rktop/config.toml on Linux
-5. legacy ~/.config/server-tui-monitor/config.toml
-```
-
-Then it opens the full-screen setup manager where you add servers from `~/.ssh/config`, type a direct `user@host` target, add the local Linux machine, test SSH, show the exact `ssh-copy-id` command when needed, reorder entries, and save. `rktop setup` is an alias for the same setup manager; `rktop edit` opens the raw TOML in `$VISUAL`/`$EDITOR` as a fallback.
-
-<p align="center">
-  <img src="assets/screenshot_setting.png" alt="rktop setup/config manager screenshot">
-</p>
-
-The SSH collector is intentionally read-only and non-interactive. Password prompts are disabled, remote installs/writes are not attempted during monitoring, and every SSH server must already work with key auth. Monitoring and `doctor` use bounded SSH calls with `-n`, `BatchMode=yes`, password and keyboard-interactive auth disabled, one connection attempt, and zero password prompts:
-
-```bash
-ssh -o BatchMode=yes server-1 true
-```
 
 ## Config
 
@@ -140,20 +195,18 @@ The setup manager creates the platform config file on first run and lets you:
 
 ### Manual TOML reference
 
-Most users do not need to write TOML by hand. If you do, prefer the user config file:
+Most users do not need to write TOML by hand; use `rktop config` first. If you do edit TOML manually, edit the config file that matches your install style:
 
-```text
-Linux:   ~/.config/rktop/config.toml
-Windows: %APPDATA%\rktop\config.toml
-```
+| install style | manual config file |
+| --- | --- |
+| Portable Linux release | `./config.toml` in the extracted `rktop/` folder |
+| Portable Windows zip | `.\config.toml` beside `rktop.exe` |
+| Source portable install | `./.rktop/config.toml` inside the clone |
+| Normal Linux user config | `~/.config/rktop/config.toml` or `$XDG_CONFIG_HOME/rktop/config.toml` |
+| Normal Windows user config | `%APPDATA%\rktop\config.toml` |
+| Shared Linux fallback | `/etc/rktop/config.toml` |
 
-For a shared Linux system default, create:
-
-```text
-/etc/rktop/config.toml
-```
-
-User config wins over the system config. The old `~/.config/server-tui-monitor/config.toml` path is still read as a legacy fallback when no new config exists.
+Explicit `--config PATH` and `$RKTOP_CONFIG` always win. Portable `config.toml` beside the executable wins over user/system config, so a downloaded folder stays self-contained. The old `~/.config/server-tui-monitor/config.toml` path is still read as a legacy fallback when no new config exists.
 
 Useful fields:
 
@@ -176,12 +229,12 @@ Future API source variants (`proxmox`, `truenas-scale`) are parsed and preserved
 ## Commands
 
 ```text
-server-tui-monitor [--mock|--live] [--snapshot] [--once] [--config PATH]
-server-tui-monitor init [--config PATH] [--force|--print]
-server-tui-monitor setup [--config PATH]
-server-tui-monitor config [--config PATH]
-server-tui-monitor edit [--config PATH]
-server-tui-monitor doctor [--config PATH]
+rktop [--mock|--live] [--snapshot] [--once] [--config PATH]
+rktop init [--config PATH] [--force|--print]
+rktop setup [--config PATH]
+rktop config [--config PATH]
+rktop edit [--config PATH]
+rktop doctor [--config PATH]
 ```
 
 
@@ -191,24 +244,23 @@ Build a local Debian package:
 
 ```bash
 scripts/build-deb.sh
-sudo apt install ./dist/rktop_0.1.0_amd64.deb
+sudo apt install ./dist/rktop_0.1.1_amd64.deb
 ```
 
 Tagged releases publish the `.deb` automatically:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
-The release workflow uploads `rktop_<version>_<arch>.deb` and a matching SHA-256 file to GitHub Releases. This is not an official Debian/Ubuntu archive package yet; it is a GitHub-hosted `.deb` for direct install.
+The release workflow uploads a portable Linux tarball, a Windows zip, `rktop_<version>_<arch>.deb`, and matching SHA-256 files to GitHub Releases. This is not an official Debian/Ubuntu archive package yet; it is a GitHub-hosted `.deb` for direct install.
 
-Installed aliases from `scripts/install.sh`:
+Installed commands:
 
 | command | purpose |
 | --- | --- |
 | `rktop` | preferred live TUI command |
-| `server-tui-monitor` | main binary |
 | `stm` | legacy shorthand kept for compatibility |
 | `stm-live` | explicit live TUI wrapper |
 | `stm-mock` | deterministic mock data |
@@ -270,7 +322,7 @@ cargo test
 cargo build --release
 ```
 
-Uninstall local command aliases:
+Remove the clone-local source install:
 
 ```bash
 scripts/install.sh --uninstall

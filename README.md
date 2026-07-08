@@ -26,31 +26,31 @@ It runs locally, collects read-only metrics over SSH, and renders CPU, memory, n
 
 ## Install
 
-### Portable release (recommended for trying it)
+### Debian / Ubuntu (recommended)
+
+The `.deb` also needs **no Rust**.
 
 ```bash
-RKTOP_VERSION=v0.1.2
+RKTOP_VERSION=v0.1.3
+wget "https://github.com/Kinetic27/rktop/releases/download/${RKTOP_VERSION}/rktop_${RKTOP_VERSION#v}_amd64.deb"
+sudo apt install "./rktop_${RKTOP_VERSION#v}_amd64.deb"
+rktop config
+rktop doctor
+rktop
+```
+
+### Portable release
+
+Use this when you want `rktop` and `config.toml` to stay in one extracted folder.
+
+```bash
+RKTOP_VERSION=v0.1.3
 wget "https://github.com/Kinetic27/rktop/releases/download/${RKTOP_VERSION}/rktop_${RKTOP_VERSION#v}_linux_x86_64.tar.gz"
 tar -xzf "rktop_${RKTOP_VERSION#v}_linux_x86_64.tar.gz"
 cd rktop
 ./rktop config
 ./rktop doctor
 ./rktop
-```
-
-Portable mode keeps the binary and `config.toml` in the extracted folder.
-
-### Debian / Ubuntu
-
-The `.deb` also needs **no Rust**.
-
-```bash
-RKTOP_VERSION=v0.1.2
-wget "https://github.com/Kinetic27/rktop/releases/download/${RKTOP_VERSION}/rktop_${RKTOP_VERSION#v}_amd64.deb"
-sudo apt install "./rktop_${RKTOP_VERSION#v}_amd64.deb"
-rktop config
-rktop doctor
-rktop
 ```
 
 ### Windows
@@ -210,7 +210,7 @@ Build a local Debian package:
 
 ```bash
 scripts/build-deb.sh
-sudo apt install ./dist/rktop_0.1.2_amd64.deb
+sudo apt install ./dist/rktop_0.1.3_amd64.deb
 ```
 
 Development uses a lightweight Git Flow style. `main` is stable/release-ready. `develop` collects the next batch of changes before release merge-back to `main`, and work happens on topic branches. See [`docs/branching.md`](docs/branching.md).

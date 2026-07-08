@@ -28,12 +28,9 @@ It runs locally, collects read-only metrics over SSH, and renders CPU, memory, n
 
 ### Debian / Ubuntu (recommended)
 
-The `.deb` needs **no Rust**.
-
 ```bash
-RKTOP_VERSION=v0.1.5
-wget "https://github.com/Kinetic27/rktop/releases/download/${RKTOP_VERSION}/rktop_${RKTOP_VERSION#v}_amd64.deb"
-sudo apt install "./rktop_${RKTOP_VERSION#v}_amd64.deb"
+wget https://github.com/Kinetic27/rktop/releases/download/v0.1.5/rktop_0.1.5_amd64.deb
+sudo apt install ./rktop_0.1.5_amd64.deb
 rktop config
 rktop doctor
 rktop

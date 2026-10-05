@@ -294,12 +294,11 @@ fn distribute_extra_height(heights: &mut [u16], mut extra: u16) {
 }
 
 fn shrink_row_heights(heights: &mut [u16], mut excess: u16) {
-    const MIN_ROW_HEIGHT: u16 = CARD_BORDER_ROWS + CARD_FIXED_CONTENT_ROWS as u16;
     while excess > 0 {
         let Some((index, _)) = heights
             .iter()
             .enumerate()
-            .filter(|(_, height)| **height > MIN_ROW_HEIGHT)
+            .filter(|(_, height)| **height > 0)
             .max_by_key(|(_, height)| **height)
         else {
             break;
@@ -1252,6 +1251,30 @@ mod tests {
                     "width={width}, missing {detail}: {text}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn cramped_multi_host_grid_stays_inside_the_frame() {
+        for host_count in [2, 6, 20] {
+            let state = AppState {
+                title: "Test dashboard".to_string(),
+                generated_at: chrono::Utc::now(),
+                mode: Mode::Mock,
+                refresh_interval_ms: 1_000,
+                hosts: vec![test_host_with_disks(vec![test_disk("/", 1.0, 2.0, 50)]); host_count],
+            };
+            let row_infos = row_layout_infos(&state.hosts, 1);
+            for height in [0, 1, 15] {
+                let rows = disk_priority_row_areas(Rect::new(3, 6, 34, height), &row_infos);
+                assert_eq!(rows.iter().map(|row| row.height).sum::<u16>(), height);
+                assert!(rows.iter().all(|row| row.bottom() <= 6 + height));
+            }
+            let backend = ratatui::backend::TestBackend::new(40, 24);
+            let mut terminal = ratatui::Terminal::new(backend).unwrap();
+            terminal
+                .draw(|frame| draw(frame, &Dashboard { state: &state }))
+                .unwrap();
         }
     }
 

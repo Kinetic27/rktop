@@ -405,8 +405,8 @@ fn collector_exports_multiple_disk_mounts_and_runtime_refresh_is_adjustable() {
     );
     assert_contains(
         RENDER_RS,
-        "const MIN_TERMINAL_WIDTH: u16 = 80;",
-        "minimum terminal width should follow the common btop-style floor",
+        "const MIN_TERMINAL_WIDTH: u16 = 40;",
+        "minimum terminal width should allow narrow single-column dashboards",
     );
     assert_contains(
         RENDER_RS,
@@ -1380,12 +1380,18 @@ fn github_release_deb_packaging_is_wired() {
     );
     assert_contains(
         README_MD,
-        "wget https://github.com/Kinetic27/rktop/releases/download/v0.1.6/rktop_0.1.6_amd64.deb",
+        &format!(
+            "wget https://github.com/Kinetic27/rktop/releases/download/v{0}/rktop_{0}_amd64.deb",
+            env!("CARGO_PKG_VERSION")
+        ),
         "README .deb install should be directly copy-pasteable",
     );
     assert_contains(
         README_MD,
-        "sudo apt install ./rktop_0.1.6_amd64.deb",
+        &format!(
+            "sudo apt install ./rktop_{}_amd64.deb",
+            env!("CARGO_PKG_VERSION")
+        ),
         "README .deb install should avoid shell parameter expansion",
     );
 }

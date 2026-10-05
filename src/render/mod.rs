@@ -14,7 +14,7 @@ use crate::{
 };
 
 const MAX_DISK_MOUNT_LABEL_WIDTH: usize = 12;
-const MIN_TERMINAL_WIDTH: u16 = 80;
+const MIN_TERMINAL_WIDTH: u16 = 40;
 const MIN_TERMINAL_HEIGHT: u16 = 24;
 const CARD_BORDER_ROWS: u16 = 2;
 const CARD_FIXED_CONTENT_ROWS: usize = 6;
@@ -859,14 +859,20 @@ fn disk_mount_line(
     mount_width: usize,
     detail_widths: DiskDetailWidths,
 ) -> Line<'static> {
-    let mount = fit_text(&short_mount(&disk.mount), mount_width);
     let detail = disk_detail_text(
         disk.percent,
         Some(disk.used_kib),
         Some(disk.total_kib),
         detail_widths,
     );
-    let bar_width = disk_bar_width(inner_width, mount_width, detail.chars().count());
+    let detail_width = detail.chars().count();
+    let mount_width = mount_width.min(
+        usize::from(inner_width)
+            .saturating_sub(7 + detail_width)
+            .max(1),
+    );
+    let mount = fit_text(&short_mount(&disk.mount), mount_width);
+    let bar_width = disk_bar_width(inner_width, mount_width, detail_width);
 
     Line::from(vec![
         Span::raw(" "),
@@ -929,7 +935,7 @@ fn disk_detail_text(
 fn disk_bar_width(inner_width: u16, mount_width: usize, detail_width: usize) -> usize {
     usize::from(inner_width)
         .saturating_sub(1 + mount_width + 1 + 1 + 1 + detail_width + 2)
-        .max(12)
+        .max(1)
 }
 
 fn fit_text(value: &str, width: usize) -> String {
@@ -1217,10 +1223,63 @@ mod tests {
         assert_eq!(card_content_layout(nas_inner_height, 8).disk_rows, 8);
     }
     #[test]
-    fn minimum_terminal_size_matches_btop_style_floor() {
-        let requirement = minimum_terminal_size();
-        assert_eq!(requirement.width, 80);
-        assert_eq!(requirement.height, 24);
+    fn narrow_dashboard_renders_metrics_and_disk_details() {
+        let disk = test_disk("long-mount-label", 225.5, 900.0, 25);
+        let state = AppState {
+            title: "Test dashboard".to_string(),
+            generated_at: chrono::Utc::now(),
+            mode: Mode::Mock,
+            refresh_interval_ms: 1_000,
+            hosts: vec![test_host_with_disks(vec![disk])],
+        };
+        for width in [40, 60, 79, 80] {
+            let backend = ratatui::backend::TestBackend::new(width, 24);
+            let mut terminal = ratatui::Terminal::new(backend).unwrap();
+            terminal
+                .draw(|frame| draw(frame, &Dashboard { state: &state }))
+                .unwrap();
+            let text = terminal
+                .backend()
+                .buffer()
+                .content
+                .iter()
+                .map(|cell| cell.symbol())
+                .collect::<String>();
+            assert!(!text.contains("Terminal size too small"), "width={width}");
+            for detail in ["cpu", "ram", "net", "disk", "25%", "225.5G/900.0G"] {
+                assert!(
+                    text.contains(detail),
+                    "width={width}, missing {detail}: {text}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn undersized_terminal_still_shows_size_warning() {
+        let state = AppState {
+            title: "Test dashboard".to_string(),
+            generated_at: chrono::Utc::now(),
+            mode: Mode::Mock,
+            refresh_interval_ms: 1_000,
+            hosts: vec![],
+        };
+        for (width, height) in [(39, 24), (40, 23)] {
+            let backend = ratatui::backend::TestBackend::new(width, height);
+            let mut terminal = ratatui::Terminal::new(backend).unwrap();
+            terminal
+                .draw(|frame| draw(frame, &Dashboard { state: &state }))
+                .unwrap();
+            let text = terminal
+                .backend()
+                .buffer()
+                .content
+                .iter()
+                .map(|cell| cell.symbol())
+                .collect::<String>();
+            assert!(text.contains("Terminal size too small:"));
+            assert!(text.contains("Width = 40 Height = 24"));
+        }
     }
 
     fn test_disk(mount: &str, used_gib: f64, total_gib: f64, percent: u16) -> DiskSnapshot {

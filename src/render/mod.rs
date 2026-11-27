@@ -9,7 +9,7 @@ use ratatui::{
 };
 
 use crate::{
-    app::{AppState, DiskSnapshot, HostSnapshot, Mode},
+    app::{AppState, DiskSnapshot, GpuSnapshot, HostSnapshot, Mode},
     theme,
 };
 
@@ -188,6 +188,7 @@ fn draw_host_grid(frame: &mut Frame<'_>, area: Rect, state: &AppState) {
             let layout = card_content_layout(
                 col.height.saturating_sub(CARD_BORDER_ROWS),
                 row_info.disk_rows,
+                host.gpus.len(),
             );
             let mount_width = column_disk_mount_widths
                 .get(col_index)
@@ -203,6 +204,7 @@ struct RowLayoutInfo {
     start: usize,
     end: usize,
     disk_rows: usize,
+    gpu_count: usize,
 }
 
 fn row_layout_infos(hosts: &[HostSnapshot], columns: usize) -> Vec<RowLayoutInfo> {
@@ -222,6 +224,11 @@ fn row_layout_infos(hosts: &[HostSnapshot], columns: usize) -> Vec<RowLayoutInfo
                 start,
                 end,
                 disk_rows,
+                gpu_count: row_hosts
+                    .iter()
+                    .map(|host| host.gpus.len())
+                    .max()
+                    .unwrap_or(0),
             }
         })
         .collect()
@@ -263,7 +270,7 @@ fn disk_priority_row_heights(total_height: u16, row_infos: &[RowLayoutInfo]) -> 
 
     let mut heights = row_infos
         .iter()
-        .map(|row| preferred_row_height(row.disk_rows))
+        .map(|row| preferred_row_height(row.disk_rows, row.gpu_count))
         .collect::<Vec<_>>();
     let preferred_total = heights.iter().sum::<u16>();
 
@@ -280,8 +287,12 @@ fn disk_priority_row_heights(total_height: u16, row_infos: &[RowLayoutInfo]) -> 
     heights
 }
 
-fn preferred_row_height(disk_rows: usize) -> u16 {
-    CARD_BORDER_ROWS + CARD_FIXED_CONTENT_ROWS as u16 + disk_rows.min(MAX_DISK_ROWS) as u16
+fn preferred_row_height(disk_rows: usize, gpu_count: usize) -> u16 {
+    (usize::from(CARD_BORDER_ROWS)
+        + CARD_FIXED_CONTENT_ROWS
+        + gpu_count * 2
+        + disk_rows.min(MAX_DISK_ROWS))
+    .min(usize::from(u16::MAX)) as u16
 }
 
 fn distribute_extra_height(heights: &mut [u16], mut extra: u16) {
@@ -378,6 +389,29 @@ fn draw_host_card(
         ));
     } else {
         lines.extend(blank_lines(layout.ram_graph_rows));
+    }
+
+    for (gpu, graph_rows) in host.gpus.iter().zip(&layout.gpu_graph_rows) {
+        lines.push(section_line(
+            "gpu",
+            &gpu_detail(gpu),
+            theme::GPU,
+            inner.width,
+        ));
+        lines.push(Line::from(Span::styled(
+            fit_text(&gpu.metrics.name, usize::from(inner.width)),
+            Style::default().fg(theme::MUTED),
+        )));
+        if available && gpu.metrics.usage_percent.is_some() {
+            lines.extend(history_graph_lines(
+                &gpu.history,
+                theme::GPU,
+                *graph_rows,
+                history_width,
+            ));
+        } else {
+            lines.extend(blank_lines(*graph_rows));
+        }
     }
 
     lines.push(net_line(host, inner.width));
@@ -486,6 +520,30 @@ fn cpu_section_line(host: &HostSnapshot, inner_width: u16) -> Line<'static> {
     section_line_with_details("cpu", &details, theme::CPU, inner_width)
 }
 
+fn gpu_detail(gpu: &GpuSnapshot) -> Vec<String> {
+    let metrics = &gpu.metrics;
+    let memory = |value: Option<u64>| {
+        value
+            .map(|bytes| format!("{:.1}G", bytes as f64 / 1_073_741_824.0))
+            .unwrap_or_else(|| "N/A".to_string())
+    };
+    vec![
+        metrics
+            .usage_percent
+            .map(|percent| format!("{percent:.0}%"))
+            .unwrap_or_else(|| "N/A".to_string()),
+        format!(
+            "{}/{}",
+            memory(metrics.memory_used_bytes),
+            memory(metrics.memory_total_bytes)
+        ),
+        metrics
+            .temperature_celsius
+            .map(|temp| format!("{temp:.0}°C"))
+            .unwrap_or_else(|| "N/A".to_string()),
+    ]
+}
+
 fn history_graph_lines(
     history: &[u16],
     color: ratatui::style::Color,
@@ -504,31 +562,41 @@ fn blank_lines(count: usize) -> Vec<Line<'static>> {
         .collect()
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct CardContentLayout {
     cpu_graph_rows: usize,
     ram_graph_rows: usize,
     net_graph_rows: usize,
+    gpu_graph_rows: Vec<usize>,
     disk_rows: usize,
 }
 
-fn card_content_layout(inner_height: u16, row_disk_count: usize) -> CardContentLayout {
+fn card_content_layout(
+    inner_height: u16,
+    row_disk_count: usize,
+    gpu_count: usize,
+) -> CardContentLayout {
     let height = usize::from(inner_height);
+    let fixed_rows = CARD_FIXED_CONTENT_ROWS + gpu_count * 2;
     let disk_rows = row_disk_count
         .min(MAX_DISK_ROWS)
-        .min(height.saturating_sub(CARD_FIXED_CONTENT_ROWS));
-    let graph_rows = height.saturating_sub(CARD_FIXED_CONTENT_ROWS + disk_rows);
+        .min(height.saturating_sub(fixed_rows));
+    let graph_rows = height.saturating_sub(fixed_rows + disk_rows);
 
-    let base_graph_rows = graph_rows / 3;
-    let extra_graph_rows = graph_rows % 3;
+    let graph_count = 3 + gpu_count;
+    let base_graph_rows = graph_rows / graph_count;
+    let extra_graph_rows = graph_rows % graph_count;
     let cpu_graph_rows = base_graph_rows + usize::from(extra_graph_rows > 0);
     let ram_graph_rows = base_graph_rows + usize::from(extra_graph_rows > 1);
-    let net_graph_rows = base_graph_rows;
+    let net_graph_rows = base_graph_rows + usize::from(extra_graph_rows > 2);
 
     CardContentLayout {
         cpu_graph_rows,
         ram_graph_rows,
         net_graph_rows,
+        gpu_graph_rows: (0..gpu_count)
+            .map(|i| base_graph_rows + usize::from(extra_graph_rows > i + 3))
+            .collect(),
         disk_rows,
     }
 }
@@ -1033,6 +1101,13 @@ pub fn snapshot_text(state: &AppState) -> String {
                 uptime = format_uptime(host.uptime_seconds),
                 seen = host.last_seen.with_timezone(&chrono::Local).format("%H:%M:%S%:z")
             ));
+            for gpu in &host.gpus {
+                let details = gpu_detail(gpu);
+                out.push_str(&format!(
+                    "  gpu={} id={} usage={} vram={} temp={}\n",
+                    gpu.metrics.name, gpu.metrics.id, details[0], details[1], details[2]
+                ));
+            }
         }
     }
 
@@ -1146,7 +1221,7 @@ mod tests {
 
     #[test]
     fn available_card_layout_spends_the_full_height_budget() {
-        let layout = card_content_layout(22, 1);
+        let layout = card_content_layout(22, 1, 0);
         let used_rows = 6
             + layout.cpu_graph_rows
             + layout.ram_graph_rows
@@ -1160,7 +1235,7 @@ mod tests {
 
     #[test]
     fn multi_disk_card_preserves_mount_rows_before_graph_height() {
-        let layout = card_content_layout(22, 8);
+        let layout = card_content_layout(22, 8, 0);
         let used_rows = 6
             + layout.cpu_graph_rows
             + layout.ram_graph_rows
@@ -1174,7 +1249,7 @@ mod tests {
 
     #[test]
     fn shared_card_layout_keeps_metric_rows_aligned() {
-        let layout = card_content_layout(22, 8);
+        let layout = card_content_layout(22, 8, 0);
         assert_eq!(layout.disk_rows, 8);
         assert!(layout.cpu_graph_rows.abs_diff(layout.ram_graph_rows) <= 1);
         assert!(layout.ram_graph_rows.abs_diff(layout.net_graph_rows) <= 1);
@@ -1202,16 +1277,19 @@ mod tests {
                 start: 0,
                 end: 2,
                 disk_rows: 1,
+                gpu_count: 0,
             },
             RowLayoutInfo {
                 start: 2,
                 end: 4,
                 disk_rows: 1,
+                gpu_count: 0,
             },
             RowLayoutInfo {
                 start: 4,
                 end: 6,
                 disk_rows: 8,
+                gpu_count: 0,
             },
         ];
         let heights = disk_priority_row_heights(48, &rows);
@@ -1219,7 +1297,7 @@ mod tests {
         assert!(heights[2] > heights[0]);
         assert!(heights[2] > heights[1]);
         let nas_inner_height = heights[2].saturating_sub(CARD_BORDER_ROWS);
-        assert_eq!(card_content_layout(nas_inner_height, 8).disk_rows, 8);
+        assert_eq!(card_content_layout(nas_inner_height, 8, 0).disk_rows, 8);
     }
     #[test]
     fn narrow_dashboard_renders_metrics_and_disk_details() {
@@ -1252,6 +1330,80 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn gpu_cards_render_graphs_vram_and_unavailable_fields_without_hiding_disks() {
+        let mut host = test_host_with_disks(vec![test_disk("/", 225.5, 900.0, 25)]);
+        let metrics = crate::collectors::metrics_from_key_values(
+            &crate::config::ServerConfig::local("local", "Local"),
+            crate::model::HostSource::Local,
+            "gpu_nvidia=GPU-a, 65, 8192, 24576, 62, NVIDIA RTX 4090\ngpu_drm=pci:0000:00:02.0|Intel Graphics||||\n",
+        );
+        host.gpus = metrics
+            .gpus
+            .into_iter()
+            .enumerate()
+            .map(|(i, metrics)| GpuSnapshot {
+                history: if i == 0 { vec![10, 40, 65] } else { vec![] },
+                metrics,
+            })
+            .collect();
+        let state = AppState {
+            title: "Test dashboard".to_string(),
+            generated_at: chrono::Utc::now(),
+            mode: Mode::Live,
+            refresh_interval_ms: 1000,
+            hosts: vec![host],
+        };
+        for (width, height) in [(40, 24), (60, 24), (100, 48)] {
+            let mut terminal =
+                ratatui::Terminal::new(ratatui::backend::TestBackend::new(width, height)).unwrap();
+            terminal
+                .draw(|frame| draw(frame, &Dashboard { state: &state }))
+                .unwrap();
+            let buffer = terminal.backend().buffer();
+            let text = buffer
+                .content
+                .iter()
+                .map(|cell| cell.symbol())
+                .collect::<String>();
+            for detail in [
+                "NVIDIA RTX 4090",
+                "Intel Graphics",
+                "65%",
+                "8.0G/24.0G",
+                "62°C",
+                "N/A",
+                "cpu",
+                "ram",
+                "net",
+                "disk",
+                "225.5G/900.0G",
+            ] {
+                assert!(
+                    text.contains(detail),
+                    "{width}x{height} missing {detail}: {text}"
+                );
+            }
+            assert_eq!(text.matches("─gpu─").count(), 2, "{text}");
+            assert!(
+                buffer.content.iter().any(|cell| cell.fg == theme::GPU
+                    && cell
+                        .symbol()
+                        .chars()
+                        .any(|ch| ('\u{2801}'..='\u{28ff}').contains(&ch))),
+                "GPU graph absent: {text}"
+            );
+        }
+        let snapshot = snapshot_text(&state);
+        assert!(
+            snapshot.contains("gpu=NVIDIA RTX 4090 id=GPU-a usage=65% vram=8.0G/24.0G temp=62°C")
+        );
+        assert!(
+            snapshot
+                .contains("gpu=Intel Graphics id=pci:0000:00:02.0 usage=N/A vram=N/A/N/A temp=N/A")
+        );
     }
 
     #[test]
@@ -1352,6 +1504,7 @@ mod tests {
             storage_used_kib: None,
             storage_total_kib: None,
             disks: vec![],
+            gpus: vec![],
         }
     }
 }

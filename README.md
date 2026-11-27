@@ -16,7 +16,7 @@
 ## Overview
 
 `rktop` is a live terminal dashboard for monitoring multiple Linux servers from one screen.
-It runs locally, collects read-only metrics over SSH, and renders CPU, memory, network, disk, uptime, kernel, hostname, and optional CPU temperature in btop-style cards.
+It runs locally, collects read-only metrics over SSH, and renders CPU, memory, network, disk, uptime, kernel, hostname, optional CPU temperature, and NVIDIA/AMD/Intel GPU metrics in btop-style cards.
 
 - live by default: `rktop`
 - no remote agent or remote install
@@ -31,8 +31,8 @@ The dashboard supports terminals as small as 40 columns × 24 rows. Narrow scree
 ### Debian / Ubuntu (recommended)
 
 ```bash
-wget https://github.com/Kinetic27/rktop/releases/download/v0.1.8/rktop_0.1.8_amd64.deb
-sudo apt install ./rktop_0.1.8_amd64.deb
+wget https://github.com/Kinetic27/rktop/releases/download/v0.1.9/rktop_0.1.9_amd64.deb
+sudo apt install ./rktop_0.1.9_amd64.deb
 rktop config
 rktop doctor
 rktop
@@ -43,7 +43,7 @@ rktop
 Use this when you want `rktop` and `config.toml` to stay in one extracted folder.
 
 ```bash
-RKTOP_VERSION=v0.1.8
+RKTOP_VERSION=v0.1.9
 wget "https://github.com/Kinetic27/rktop/releases/download/${RKTOP_VERSION}/rktop_${RKTOP_VERSION#v}_linux_x86_64.tar.gz"
 tar -xzf "rktop_${RKTOP_VERSION#v}_linux_x86_64.tar.gz"
 cd rktop
@@ -57,7 +57,7 @@ cd rktop
 Experimental: run `rktop` on macOS to monitor Linux SSH hosts. Local macOS metrics are not implemented yet.
 
 ```bash
-RKTOP_VERSION=v0.1.8
+RKTOP_VERSION=v0.1.9
 wget "https://github.com/Kinetic27/rktop/releases/download/${RKTOP_VERSION}/rktop_${RKTOP_VERSION#v}_macos_x86_64.tar.gz"
 tar -xzf "rktop_${RKTOP_VERSION#v}_macos_x86_64.tar.gz"
 cd rktop
@@ -71,7 +71,7 @@ cd rktop
 Portable zip:
 
 ```powershell
-$Version = "v0.1.8"
+$Version = "v0.1.9"
 Invoke-WebRequest "https://github.com/Kinetic27/rktop/releases/download/$Version/rktop_${Version}_windows_x86_64.zip" -OutFile rktop.zip
 Expand-Archive .\rktop.zip -DestinationPath . -Force
 cd .\rktop
@@ -181,6 +181,18 @@ optional = false
 
 Remote Linux hosts should provide a POSIX shell, `/proc`, `df`, `awk`, `grep`, `hostname`, `uname`, and `base64` when monitored from Windows.
 
+### GPUs
+
+GPU monitoring is automatic for local Linux and Linux SSH hosts. Each detected GPU gets a utilization history graph, device name, VRAM used/total, and temperature when available. Multiple GPUs are tracked independently by NVIDIA UUID or PCI address, even when device order changes. If the model name is unavailable, AMD/Intel cards show their vendor and PCI device ID.
+
+| Vendor | Collection requirements on the monitored host |
+| --- | --- |
+| NVIDIA | Working driver, `nvidia-smi`, and coreutils `timeout` in the collection user's `PATH`; queries time out after two seconds. |
+| AMD | DRM sysfs (`amdgpu`): utilization, VRAM counters, and device hwmon temperature where exposed by the driver. No vendor tool required. |
+| Intel | DRM sysfs for identification and available VRAM/temperature counters; optional `intel_gpu_top` and `timeout` for utilization. Intel utilization is the busiest engine class from a short 100ms sampling window, not a sum of concurrent engines. Perf counter access must be permitted for the collection user. |
+
+No GPU software is installed, no permissions are changed, and no extra rktop configuration is required. Intel sampling stops after 0.4 seconds; timed commands have a one-second forced-kill grace period. Hosts without detected GPUs keep the existing CPU/RAM/NET/disk layout; missing tools or failed GPU queries do not prevent other metrics from being collected. Unsupported or inaccessible measurements display as `N/A`, not zero. In particular, integrated GPUs may not expose dedicated VRAM, and Intel utilization can be unavailable depending on the driver and perf permissions. GPU history contains only collected samples; missing utilization clears its graph until measurements resume.
+
 
 ## Refresh behavior
 
@@ -223,7 +235,7 @@ Build a local Debian package:
 
 ```bash
 scripts/build-deb.sh
-sudo apt install ./dist/rktop_0.1.8_amd64.deb
+sudo apt install ./dist/rktop_0.1.9_amd64.deb
 ```
 
 Development uses a lightweight Git Flow style. `main` is stable/release-ready. `develop` collects the next batch of changes before release merge-back to `main`, and work happens on topic branches. See [`docs/branching.md`](docs/branching.md).

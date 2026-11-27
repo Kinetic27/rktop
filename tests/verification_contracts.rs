@@ -1124,7 +1124,7 @@ host = "storage"
 
     for label in [
         "cpu=", "temp=", "load=", "cores=", "ram=", "storage=", "disks=", "net=", "host=",
-        "kernel=", "uptime=",
+        "kernel=", "uptime=", "gpu=", "vram=",
     ] {
         assert!(
             stdout.contains(label),

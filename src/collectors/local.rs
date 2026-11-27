@@ -36,7 +36,8 @@ pub fn collect(server: &ServerConfig) -> Result<HostMetrics, CollectorError> {
     }
 }
 
-pub const FIXED_COLLECT_COMMAND: &str = r#"hostname=$(hostname 2>/dev/null || true)
+pub const FIXED_COLLECT_COMMAND: &str = concat!(
+    r#"hostname=$(hostname 2>/dev/null || true)
 kernel=$(uname -sr 2>/dev/null || true)
 loadavg=$(cat /proc/loadavg 2>/dev/null || true)
 uptime_seconds=$(awk '{printf "%.0f\n", $1}' /proc/uptime 2>/dev/null || true)
@@ -86,4 +87,7 @@ printf 'root_available_kib=%s\n' "${3:-0}"
 printf '%s\n%s\n' "$zpool_lines" "$disk_lines" | while IFS= read -r disk_line; do
   [ -n "$disk_line" ] && printf 'disk=%s\n' "$disk_line"
 done
-"#;
+"#,
+    include_str!("gpu.sh"),
+    "\ngpu_collect\n"
+);

@@ -141,7 +141,7 @@ Homepage: https://github.com/Kinetic27/rktop
 Description: btop-inspired TUI dashboard for multiple Linux servers
  rktop is a live terminal dashboard for monitoring several Linux hosts over
  SSH. It collects read-only CPU, RAM, network, disk, uptime, hostname, kernel,
- and optional temperature metrics without installing agents on remote hosts.
+ and optional temperature and GPU metrics without installing remote agents.
 CONTROL
 
 mkdir -p "$out_dir"

@@ -2,8 +2,8 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use crate::config::{AppConfig, ServerConfig, default_servers};
 use crate::model::{
-    CpuMetrics, DiskMetrics, Freshness, HostMetrics, HostSource, HostStatus, NetworkMetrics,
-    RamMetrics, StorageMetrics,
+    CpuMetrics, DiskMetrics, Freshness, GpuMetrics, HostMetrics, HostSource, HostStatus,
+    NetworkMetrics, RamMetrics, StorageMetrics,
 };
 
 const FIXTURE_TIME_SECS: u64 = 1_798_838_400; // 2027-01-01T00:00:00Z, stable display ordering only.
@@ -71,6 +71,18 @@ pub fn fixture_for_server(server: &ServerConfig, offset: u64) -> HostMetrics {
             total_kib: Some((8 + base) * 1024 * 1024),
             available_kib: Some((3 + base) * 1024 * 1024),
             used_kib: Some((5 + base) * 1024 * 1024),
+        },
+        gpus: if offset == 0 {
+            vec![GpuMetrics {
+                id: "GPU-fixture".to_string(),
+                name: "NVIDIA GeForce RTX 4090".to_string(),
+                usage_percent: Some(65.0),
+                memory_used_bytes: Some(8 * 1024 * 1024 * 1024),
+                memory_total_bytes: Some(24 * 1024 * 1024 * 1024),
+                temperature_celsius: Some(62.0),
+            }]
+        } else {
+            Vec::new()
         },
         network: NetworkMetrics {
             rx_bytes_total: Some(base * 1_000_000_000),

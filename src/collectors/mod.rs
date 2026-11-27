@@ -1,3 +1,4 @@
+mod gpu;
 pub mod local;
 pub mod proxmox;
 pub mod ssh;
@@ -9,8 +10,8 @@ use std::time::Duration;
 
 use crate::config::ServerConfig;
 use crate::model::{
-    CpuMetrics, DiskMetrics, Freshness, HostMetrics, HostSource, HostStatus, NetworkMetrics,
-    RamMetrics, StorageMetrics,
+    CpuMetrics, DiskMetrics, Freshness, GpuMetrics, HostMetrics, HostSource, HostStatus,
+    NetworkMetrics, RamMetrics, StorageMetrics,
 };
 
 pub const DEFAULT_STALE_AFTER: Duration = Duration::from_secs(15);
@@ -52,7 +53,7 @@ impl From<std::string::FromUtf8Error> for CollectorError {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct RawHostSnapshot {
     pub hostname: Option<String>,
     pub kernel: Option<String>,
@@ -60,6 +61,7 @@ pub struct RawHostSnapshot {
     pub loadavg: Option<String>,
     pub cpu_cores: Option<u16>,
     pub cpu_temp_millicelsius: Option<u64>,
+    pub gpus: Vec<GpuMetrics>,
     pub mem_total_kib: Option<u64>,
     pub mem_available_kib: Option<u64>,
     pub net_rx_bytes: Option<u64>,
@@ -134,6 +136,7 @@ pub fn metrics_from_snapshot(
             available_kib: snapshot.mem_available_kib,
             used_kib,
         },
+        gpus: snapshot.gpus,
         network: NetworkMetrics {
             rx_bytes_total: snapshot.net_rx_bytes,
             tx_bytes_total: snapshot.net_tx_bytes,
@@ -162,6 +165,23 @@ pub fn parse_key_values(output: &str) -> RawHostSnapshot {
             "loadavg" => snapshot.loadavg = non_empty(value),
             "cpu_cores" => snapshot.cpu_cores = value.parse().ok(),
             "cpu_temp_millicelsius" => snapshot.cpu_temp_millicelsius = parse_u64_value(value),
+            "gpu_nvidia" => {
+                if let Some(gpu) = gpu::parse_nvidia(value) {
+                    snapshot.gpus.push(gpu);
+                }
+            }
+            "gpu_drm" => {
+                if let Some(gpu) = gpu::parse_drm(value) {
+                    snapshot.gpus.push(gpu);
+                }
+            }
+            "gpu_intel" => {
+                if let Some((id, json)) = value.split_once('|')
+                    && let Some(gpu) = snapshot.gpus.iter_mut().find(|gpu| gpu.id == id)
+                {
+                    gpu.usage_percent = gpu::intel_usage(json);
+                }
+            }
             "mem_total_kib" => snapshot.mem_total_kib = parse_u64_value(value),
             "mem_available_kib" => snapshot.mem_available_kib = parse_u64_value(value),
             "net_rx_bytes" => snapshot.net_rx_bytes = parse_u64_value(value),

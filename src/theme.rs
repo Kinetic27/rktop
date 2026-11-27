@@ -38,6 +38,7 @@ pub const TEXT: Color = Color::Rgb(219, 229, 243);
 pub const MUTED: Color = Color::Rgb(128, 142, 163);
 pub const ACCENT: Color = Color::Rgb(90, 200, 250);
 pub const CPU: Color = Color::Rgb(123, 220, 181);
+pub const GPU: Color = Color::Rgb(216, 151, 255);
 pub const RAM: Color = Color::Rgb(150, 180, 255);
 pub const STORAGE: Color = Color::Rgb(255, 184, 108);
 pub const NETWORK: Color = Color::Rgb(95, 214, 231);

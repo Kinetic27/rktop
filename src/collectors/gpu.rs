@@ -214,7 +214,7 @@ mod tests {
         fn collects_nvidia_amd_and_intel_through_real_shell_and_parser() {
             let host = HostDir::new();
             host.tool("nvidia-smi", "[ \"$1\" = '--query-gpu=uuid,utilization.gpu,memory.used,memory.total,temperature.gpu,name' ] || exit 1\n[ \"$2\" = '--format=csv,noheader,nounits' ] || exit 1\nprintf '%s\\n' 'GPU-a, 100, 512.5, 8192, 62, NVIDIA A, Special Edition' 'GPU-b, 0, 0, 4096, 40, NVIDIA B'");
-            host.tool("intel_gpu_top", "[ \"$1\" = -d ] && [ \"$2\" = drm:/dev/dri/card2 ] && [ \"$3\" = -J ] || exit 1\nprintf '%s\\n' '{\"engines\":{\"Render/3D/0\":{\"busy\":72.25},\"Video/0\":{\"busy\":19.0}}}'\nexec /bin/sleep 30");
+            host.tool("intel_gpu_top", "[ \"$1\" = -d ] && [ \"$2\" = drm:/dev/dri/card2 ] && [ \"$3\" = -J ] || exit 1\ntrap '' INT\nprintf '%s\\n' '{\"engines\":{\"Render/3D/0\":{\"busy\":72.25},\"Video/0\":{\"busy\":19.0}}}'\nexec /bin/sleep 30");
             let amd = host.card(1, "0x1002", "0000:03:00.0");
             fs::write(amd.join("device/gpu_busy_percent"), "83\n").unwrap();
             fs::write(amd.join("device/mem_info_vram_used"), "1073741824\n").unwrap();

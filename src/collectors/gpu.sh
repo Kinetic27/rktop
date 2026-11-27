@@ -42,11 +42,12 @@ gpu_collect_card() (
   printf 'gpu_drm=%s|%s|%s|%s|%s|%s\n' "$id" "$name" "$busy" "$used" "$total" "$temp"
   if [ "$brand" = Intel ] && command -v intel_gpu_top >/dev/null 2>&1 && command -v timeout >/dev/null 2>&1; then
     # SIGINT lets intel_gpu_top flush the last sample. Complete earlier samples
-    # remain usable if it is killed midway through a subsequent JSON object.
+    # remain usable if it is killed midway through a subsequent JSON object,
+    # including timeout's SIGKILL status (137) on GNU and uutils coreutils.
     json=$(LC_ALL=C timeout -s INT -k 1s 0.4s intel_gpu_top -d "drm:/dev/dri/${card##*/}" -J -s 100 -o - 2>/dev/null)
     result=$?
     case "$result" in
-      0|124) printf 'gpu_intel=%s|%s\n' "$id" "$(printf '%s' "$json" | tr -d '\n\r')" ;;
+      0|124|137) printf 'gpu_intel=%s|%s\n' "$id" "$(printf '%s' "$json" | tr -d '\n\r')" ;;
     esac
   fi
   exit 0

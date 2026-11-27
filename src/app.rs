@@ -13,8 +13,8 @@ use crate::config::{
     enabled_servers, load_config, load_config_file, write_example_config,
 };
 use crate::model::{
-    CpuMetrics, Freshness, HostMetrics, HostSource, HostStatus, NetworkMetrics, RamMetrics,
-    StorageMetrics,
+    CpuMetrics, Freshness, GpuMetrics, HostMetrics, HostSource, HostStatus, NetworkMetrics,
+    RamMetrics, StorageMetrics,
 };
 use crate::render::{self, Dashboard};
 use crate::theme::Status;
@@ -189,6 +189,13 @@ pub struct HostSnapshot {
     pub storage_used_kib: Option<u64>,
     pub storage_total_kib: Option<u64>,
     pub disks: Vec<DiskSnapshot>,
+    pub gpus: Vec<GpuSnapshot>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GpuSnapshot {
+    pub metrics: GpuMetrics,
+    pub history: Vec<u16>,
 }
 
 #[derive(Debug, Clone)]
@@ -2799,6 +2806,7 @@ fn unavailable_metrics(
         error: Some(error.into()),
         freshness: Freshness::now(crate::collectors::DEFAULT_STALE_AFTER),
         cpu: CpuMetrics::empty(),
+        gpus: Vec::new(),
         ram: RamMetrics::empty(),
         network: NetworkMetrics::empty(),
         storage: StorageMetrics::empty(),
@@ -2988,6 +2996,27 @@ fn view_from_metrics(
             Vec::new()
         } else {
             disk_snapshots(&host.storage, server)
+        },
+        gpus: if hide_metrics {
+            Vec::new()
+        } else {
+            host.gpus
+                .into_iter()
+                .map(|metrics| {
+                    let mut history = Vec::new();
+                    if let Some(usage) = metrics.usage_percent {
+                        if let Some(previous) = previous.and_then(|host| {
+                            host.gpus.iter().find(|gpu| gpu.metrics.id == metrics.id)
+                        }) {
+                            history.extend_from_slice(&previous.history);
+                        }
+                        history.push(usage.round() as u16);
+                        let excess = history.len().saturating_sub(HISTORY_LEN);
+                        history.drain(..excess);
+                    }
+                    GpuSnapshot { metrics, history }
+                })
+                .collect()
         },
     }
 }
@@ -3429,6 +3458,74 @@ fn adjust_refresh_interval(current: Duration, delta_ms: i64) -> Duration {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gpu_history_tracks_device_identity_and_only_real_samples() {
+        let server = ServerConfig::local("local", "Local");
+        let make_view = |payload: &str, previous: Option<&HostSnapshot>| {
+            let metrics =
+                crate::collectors::metrics_from_key_values(&server, HostSource::Local, payload);
+            view_from_metrics(
+                metrics,
+                Some(&server),
+                0,
+                Utc::now(),
+                true,
+                previous,
+                Some(1.0),
+            )
+        };
+        let first = make_view(
+            "gpu_nvidia=GPU-a, 10, 1, 2, 40, NVIDIA A\ngpu_nvidia=GPU-b, 20, 1, 2, 40, NVIDIA B\n",
+            None,
+        );
+        assert_eq!(first.gpus[0].history, vec![10]);
+        assert_eq!(first.gpus[1].history, vec![20]);
+        let reordered = make_view(
+            "gpu_nvidia=GPU-b, 100, 1, 2, 40, NVIDIA B\ngpu_nvidia=GPU-a, 30, 1, 2, 40, NVIDIA A\n",
+            Some(&first),
+        );
+        assert_eq!(reordered.gpus[0].history, vec![20, 100]);
+        assert_eq!(reordered.gpus[1].history, vec![10, 30]);
+        let missing = make_view(
+            "gpu_nvidia=GPU-a, N/A, 1, 2, 40, NVIDIA A\n",
+            Some(&reordered),
+        );
+        assert_eq!(missing.gpus.len(), 1);
+        assert!(missing.gpus[0].history.is_empty());
+        let recovered = make_view(
+            "gpu_nvidia=GPU-a, 0, 1, 2, 40, NVIDIA A\ngpu_nvidia=GPU-b, 40, 1, 2, 40, NVIDIA B\n",
+            Some(&missing),
+        );
+        assert_eq!(recovered.gpus[0].history, vec![0]);
+        assert_eq!(recovered.gpus[1].history, vec![40]);
+        let mut previous = recovered;
+        previous.gpus[0].history = vec![0; HISTORY_LEN];
+        previous.gpus[0].history[1] = 50;
+        let capped = make_view(
+            "gpu_nvidia=GPU-a, 60, 1, 2, 40, NVIDIA A\n",
+            Some(&previous),
+        );
+        assert_eq!(capped.gpus[0].history.len(), HISTORY_LEN);
+        assert_eq!(capped.gpus[0].history[0], 50);
+        assert_eq!(capped.gpus[0].history.last(), Some(&60));
+        let mut offline_metrics = crate::collectors::metrics_from_key_values(
+            &server,
+            HostSource::Local,
+            "gpu_nvidia=GPU-a, 80, 1, 2, 40, NVIDIA A\n",
+        );
+        offline_metrics.status = HostStatus::Offline;
+        let offline = view_from_metrics(
+            offline_metrics,
+            Some(&server),
+            0,
+            Utc::now(),
+            true,
+            Some(&capped),
+            Some(1.0),
+        );
+        assert!(offline.gpus.is_empty());
+    }
 
     #[test]
     fn zfs_pool_mount_collapses_child_dataset_mounts() {

@@ -66,6 +66,16 @@ pub struct CpuMetrics {
     pub temperature_celsius: Option<f32>,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct GpuMetrics {
+    pub id: String,
+    pub name: String,
+    pub usage_percent: Option<f32>,
+    pub memory_used_bytes: Option<u64>,
+    pub memory_total_bytes: Option<u64>,
+    pub temperature_celsius: Option<f32>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RamMetrics {
     pub total_kib: Option<u64>,
@@ -163,6 +173,7 @@ pub struct HostMetrics {
     pub error: Option<String>,
     pub freshness: Freshness,
     pub cpu: CpuMetrics,
+    pub gpus: Vec<GpuMetrics>,
     pub ram: RamMetrics,
     pub network: NetworkMetrics,
     pub storage: StorageMetrics,
@@ -189,6 +200,7 @@ impl HostMetrics {
             error: Some("host disabled in config".to_string()),
             freshness: Freshness::now(Duration::from_secs(60)),
             cpu: CpuMetrics::empty(),
+            gpus: Vec::new(),
             ram: RamMetrics::empty(),
             network: NetworkMetrics::empty(),
             storage: StorageMetrics::empty(),
